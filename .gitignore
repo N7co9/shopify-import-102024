@@ -74,3 +74,6 @@
 coverage
 /coverage/
 ###> phpunit/phpunit ###
+assets
+/.assets
+.assets

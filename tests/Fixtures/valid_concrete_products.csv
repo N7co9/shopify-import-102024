@@ -1,0 +1,2 @@
+abstract_sku,concrete_sku,name.en_US,name.de_DE,description.en_US,description.de_DE,is_searchable.en_US,is_searchable.de_DE
+SKU001,SKU001-V1,Test Product Variant EN,Testprodukt Variante DE,This is a test variant,Dies ist eine Testvariante,1,0

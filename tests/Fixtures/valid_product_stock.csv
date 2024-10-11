@@ -1,0 +1,3 @@
+sku,quantity,is_never_out_of_stock
+SKU001,100,true
+SKU002,50,false
