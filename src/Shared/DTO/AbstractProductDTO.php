@@ -14,6 +14,8 @@ class AbstractProductDTO
     private string $taxSetName;
     private ?string $metaTitleEn;
     private ?string $metaTitleDe;
+    private array $labels = [];
+    private array $managementAttributes = [];
 
     public function __construct(
         string  $abstractSku,
@@ -127,4 +129,25 @@ class AbstractProductDTO
     {
         $this->abstractSku = $abstractSku;
     }
+
+    public function getLabels(): array
+    {
+        return $this->labels;
+    }
+
+    public function setLabels(array $labels): void
+    {
+        $this->labels = $labels;
+    }
+
+    public function getManagementAttributes(): array
+    {
+        return $this->managementAttributes;
+    }
+
+    public function setManagementAttributes(array $managementAttributes): void
+    {
+        $this->managementAttributes = $managementAttributes;
+    }
+
 }

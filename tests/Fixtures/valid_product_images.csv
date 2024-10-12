@@ -1,0 +1,4 @@
+image_set_name,external_url_large,external_url_small,locale,abstract_sku,concrete_sku,sort_order,product_image_key
+default,https://example.com/large1.jpg,https://example.com/small1.jpg,de_DE,,concrete_sku_1,1,product_image_1
+default,https://example.com/large2.jpg,https://example.com/small2.jpg,de_DE,abstract_sku_2,,2,product_image_2
+default,https://example.com/large3.jpg,https://example.com/small3.jpg,en_US,,concrete_sku_3,1,product_image_3

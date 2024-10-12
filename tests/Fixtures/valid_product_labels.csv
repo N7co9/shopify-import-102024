@@ -1,0 +1,4 @@
+name,is_active,is_dynamic,is_exclusive,front_end_reference,name.en_US,name.de_DE,product_abstract_skus,priority
+Standard label,1,0,0,,Standard Label,Standard Label,"001,002,003",1
+NEW,1,1,0,template:tag,New,Neu,,2
+SALE,1,1,0,highlight,SALE %,SALE %,,"3
