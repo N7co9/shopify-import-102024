@@ -33,6 +33,7 @@ class ProductImageImporter
                 continue;
             }
 
+
             $record = array_combine($header, $row);
 
             if (!empty($record['abstract_sku'])) {

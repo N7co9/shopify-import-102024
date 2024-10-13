@@ -95,7 +95,7 @@ class ImportProcessor
         foreach ($abstractProducts as $abstractProduct) {
             $sku = $abstractProduct->getAbstractSku();
 
-            $productLabels = array_filter($labels, fn(ProductLabelDTO $label) => in_array($sku, $label->getProductAbstractSkus() ?? []));
+            $productLabels = array_filter($labels, fn(ProductLabelDTO $label) => in_array($sku, $label->getProductAbstractSkus() ?? [], true));
             $productAttributes = array_filter($attributes, fn(ProductManagementAttributeDTO $attribute) => $attribute->getKey() === $abstractProduct->getCategoryKey());
 
             $abstractProductDTO = new AbstractProductDTO(
