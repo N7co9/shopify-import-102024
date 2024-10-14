@@ -5,7 +5,7 @@ namespace App\Tests\Unit\Application\Import\Abstract;
 
 
 use App\Application\Import\Abstract\AbstractProductImporter;
-use App\Shared\DTO\AbstractProductDTO;
+use App\Domain\DTO\AbstractProductDTO;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\File;

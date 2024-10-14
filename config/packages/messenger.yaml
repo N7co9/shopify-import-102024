@@ -1,0 +1,18 @@
+framework:
+    messenger:
+        transports:
+            amqp:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    exchange:
+                        name: 'product_exchange'
+                        type: topic
+                    queues:
+                        abstract_product_queue:
+                            binding_keys: ['abstract.product']
+                        concrete_product_queue:
+                            binding_keys: ['concrete.product']
+
+        routing:
+            'App\Domain\Message\ProductMessage': amqp
+

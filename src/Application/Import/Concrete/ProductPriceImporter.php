@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Application\Import\Concrete;
 
-use App\Shared\DTO\ProductPriceDTO;
+use App\Domain\DTO\ProductPriceDTO;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\File;
 
@@ -31,9 +31,11 @@ class ProductPriceImporter
 
             $record = array_combine($header, $row);
 
+            $sku = $this->extractSku($record);
+
             $productPriceDTO = new ProductPriceDTO(
-                $record['sku'],
-                (float) $record['price_gross'],
+                $sku,
+                (float)$record['value_gross'],
                 $record['currency']
             );
 
@@ -52,5 +54,18 @@ class ProductPriceImporter
         }
 
         return $file;
+    }
+
+    private function extractSku(array $record): string
+    {
+        if (!empty($record['abstract_sku'])) {
+            return $record['abstract_sku'];
+        }
+
+        if (!empty($record['concrete_sku'])) {
+            return $record['concrete_sku'];
+        }
+
+        throw new \RuntimeException('No valid SKU found.');
     }
 }

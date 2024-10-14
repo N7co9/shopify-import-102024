@@ -5,7 +5,7 @@ namespace App\Tests\Integration\Application\Import\Concrete;
 
 
 use App\Application\Import\Concrete\ProductLabelImporter;
-use App\Shared\DTO\ProductLabelDTO;
+use App\Domain\DTO\ProductLabelDTO;
 use PHPUnit\Framework\TestCase;
 
 class ProductLabelImporterTest extends TestCase

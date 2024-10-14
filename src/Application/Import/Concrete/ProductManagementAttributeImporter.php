@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Application\Import\Concrete;
 
-use App\Shared\DTO\ProductManagementAttributeDTO;
+use App\Domain\DTO\ProductManagementAttributeDTO;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\File;
 

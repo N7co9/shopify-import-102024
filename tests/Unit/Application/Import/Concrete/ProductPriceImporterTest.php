@@ -5,7 +5,7 @@ namespace App\Tests\Unit\Application\Import\Concrete;
 
 
 use App\Application\Import\Concrete\ProductPriceImporter;
-use App\Shared\DTO\ProductPriceDTO;
+use App\Domain\DTO\ProductPriceDTO;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\File;

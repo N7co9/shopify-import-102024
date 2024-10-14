@@ -5,7 +5,7 @@ namespace App\Tests\Integration\Application\Import\Concrete;
 
 
 use App\Application\Import\Concrete\ProductPriceImporter;
-use App\Shared\DTO\ProductPriceDTO;
+use App\Domain\DTO\ProductPriceDTO;
 use PHPUnit\Framework\TestCase;
 
 class ProductPriceImporterTest extends TestCase

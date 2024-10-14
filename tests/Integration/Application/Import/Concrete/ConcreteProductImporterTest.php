@@ -5,7 +5,7 @@ namespace App\Tests\Integration\Application\Import\Concrete;
 
 
 use App\Application\Import\Concrete\ConcreteProductImporter;
-use App\Shared\DTO\ConcreteProductDTO;
+use App\Domain\DTO\ConcreteProductDTO;
 use PHPUnit\Framework\TestCase;
 
 class ConcreteProductImporterTest extends TestCase

@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Application\Import\Concrete;
 
 use App\Application\Import\Concrete\ConcreteProductImporter;
-use App\Shared\DTO\ConcreteProductDTO;
+use App\Domain\DTO\ConcreteProductDTO;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\File;

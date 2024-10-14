@@ -5,7 +5,7 @@ namespace App\Tests\Integration\Application\Import\Abstract;
 
 
 use App\Application\Import\Abstract\AbstractProductImporter;
-use App\Shared\DTO\AbstractProductDTO;
+use App\Domain\DTO\AbstractProductDTO;
 use PHPUnit\Framework\TestCase;
 
 class AbstractProductImporterTest extends TestCase

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Application\Import\Abstract;
 
-use App\Shared\DTO\AbstractProductDTO;
+use App\Domain\DTO\AbstractProductDTO;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\File;
 

@@ -10,13 +10,13 @@ use App\Application\Import\Concrete\ProductLabelImporter;
 use App\Application\Import\Concrete\ProductManagementAttributeImporter;
 use App\Application\Import\Concrete\ProductPriceImporter;
 use App\Application\Import\Concrete\ProductStockImporter;
-use App\Shared\DTO\AbstractProductDTO;
-use App\Shared\DTO\ConcreteProductDTO;
-use App\Shared\DTO\ProductImageDTO;
-use App\Shared\DTO\ProductLabelDTO;
-use App\Shared\DTO\ProductManagementAttributeDTO;
-use App\Shared\DTO\ProductPriceDTO;
-use App\Shared\DTO\ProductStockDTO;
+use App\Domain\DTO\AbstractProductDTO;
+use App\Domain\DTO\ConcreteProductDTO;
+use App\Domain\DTO\ProductImageDTO;
+use App\Domain\DTO\ProductLabelDTO;
+use App\Domain\DTO\ProductManagementAttributeDTO;
+use App\Domain\DTO\ProductPriceDTO;
+use App\Domain\DTO\ProductStockDTO;
 use Symfony\Component\Finder\Finder;
 
 class ImportProcessor
@@ -157,6 +157,13 @@ class ImportProcessor
     {
         foreach ($prices as $price) {
             if ($price->getSku() === $sku) {
+                return $price;
+            }
+        }
+        $abstractSku = explode('_', $sku)[0];
+
+        foreach ($prices as $price) {
+            if ($price->getSku() === $abstractSku) {
                 return $price;
             }
         }

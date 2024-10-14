@@ -6,7 +6,7 @@ namespace App\Tests\Integration\Application\Import\Concrete;
 
 
 use App\Application\Import\Concrete\ProductImageImporter;
-use App\Shared\DTO\ProductImageDTO;
+use App\Domain\DTO\ProductImageDTO;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 

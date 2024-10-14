@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Application\Import\Concrete;
 
 use App\Application\Import\Concrete\ProductManagementAttributeImporter;
-use App\Shared\DTO\ProductManagementAttributeDTO;
+use App\Domain\DTO\ProductManagementAttributeDTO;
 use PHPUnit\Framework\TestCase;
 
 class ProductManagementAttributeImporterTest extends TestCase

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Shared\DTO;
+namespace App\Domain\DTO;
 
 class AbstractProductDTO
 {

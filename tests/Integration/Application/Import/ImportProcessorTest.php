@@ -35,12 +35,12 @@ class ImportProcessorTest extends TestCase
         ]);
 
         $this->createCsvFile('product_price.csv', [
-            ['sku', 'price_gross', 'currency'],
-            ['CONCRETE001', '100.00', 'EUR'],
+            ['abstract_sku', 'concrete_sku', 'value_gross', 'currency'],
+            ['CONCRETE001', '', '100.00', 'EUR'],
         ]);
 
         $this->createCsvFile('product_stock.csv', [
-            ['sku', 'quantity', 'is_never_out_of_stock'],
+            ['concrete_sku', 'quantity', 'is_never_out_of_stock'],
             ['CONCRETE001', '10', 'false'],
         ]);
 

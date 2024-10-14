@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Application\Import\Concrete;
 
-use App\Shared\DTO\ProductStockDTO;
+use App\Domain\DTO\ProductStockDTO;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\File;
 
@@ -35,9 +35,10 @@ class ProductStockImporter
                 $neverOutOfStock = true;
             }
 
+            $sku = $this->extractSku($record);
 
             $productStockDTO = new ProductStockDTO(
-                $record['sku'],
+                $sku,
                 (int)$record['quantity'],
                 $neverOutOfStock
             );
@@ -57,5 +58,18 @@ class ProductStockImporter
         }
 
         return $file;
+    }
+
+    private function extractSku(array $record): string
+    {
+        if (!empty($record['abstract_sku'])) {
+            return $record['abstract_sku'];
+        }
+
+        if (!empty($record['concrete_sku'])) {
+            return $record['concrete_sku'];
+        }
+
+        throw new \RuntimeException('No valid SKU found.');
     }
 }

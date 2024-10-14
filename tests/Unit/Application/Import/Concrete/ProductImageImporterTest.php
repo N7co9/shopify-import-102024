@@ -5,7 +5,7 @@ namespace App\Tests\Unit\Application\Import\Concrete;
 
 
 use App\Application\Import\Concrete\ProductImageImporter;
-use App\Shared\DTO\ProductImageDTO;
+use App\Domain\DTO\ProductImageDTO;
 use PHPUnit\Framework\TestCase;
 
 class ProductImageImporterTest extends TestCase
