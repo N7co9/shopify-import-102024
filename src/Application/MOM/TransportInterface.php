@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Application\Transport;
+namespace App\Application\MOM;
 
 use App\Domain\DTO\AbstractProductDTO;
 use App\Domain\DTO\ConcreteProductDTO;

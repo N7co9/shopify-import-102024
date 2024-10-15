@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace App\Presentation\Command;
 
-use App\Application\Import\ImportFacadeInterface;
-use App\Application\Transport\TransportInterface;
-use App\Infrastructure\LoggerInterface;
+use App\Application\Import\ImportInterface;
+use App\Application\Logger\LoggerInterface;
+use App\Application\MOM\TransportInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -15,16 +15,16 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Stopwatch\Stopwatch;
 
 #[AsCommand(
-    name: 'app:wizard',
-    description: 'Ein moderner Import-Wizard für den Verarbeitungs- und Versandprozess von DTOs.'
+    name: 'app:import',
+    description: 'Ein moderner Import-ImportWizard für den Verarbeitungs- und Versandprozess von DTOs.'
 )]
-class Wizard extends Command
+class ImportWizard extends Command
 {
-    private ImportFacadeInterface $import;
+    private ImportInterface $import;
     private TransportInterface $transport;
     private LoggerInterface $logger;
 
-    public function __construct(ImportFacadeInterface $importFacade, TransportInterface $messageDispatcher, LoggerInterface $logger)
+    public function __construct(ImportInterface $importFacade, TransportInterface $messageDispatcher, LoggerInterface $logger)
     {
         $this->logger = $logger;
         $this->import = $importFacade;
@@ -44,7 +44,7 @@ class Wizard extends Command
         $io = new SymfonyStyle($input, $output);
         $directory = $input->getArgument('directory');
 
-        $io->title('🧙 Willkommen beim Import-Wizard 🧙');
+        $io->title('🧙 Willkommen beim Import-ImportWizard 🧙');
 
         if (!is_dir($directory)) {
             $io->error(sprintf('Der angegebene Pfad "%s" ist kein Verzeichnis.', $directory));
@@ -59,9 +59,7 @@ class Wizard extends Command
         $progressBar->start();
 
         try {
-            $result = $this->import->processImport($directory, function($progress) use ($progressBar) {
-                $progressBar->advance();
-            });
+            $result = $this->import->processImport($directory);
             $progressBar->finish();
             $io->newLine(2);
             $this->logger->logSuccess(sprintf('Import erfolgreich für Verzeichnis: %s', $directory));

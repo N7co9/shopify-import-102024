@@ -100,7 +100,7 @@ class ImportProcessorTest extends TestCase
             $attributeImporter
         );
 
-        $result = $processor->processDirectory($this->tempDirectory);
+        $result = $processor->processImport($this->tempDirectory);
 
         $this->assertIsArray($result['abstract_products']);
         $this->assertIsArray($result['concrete_products']);

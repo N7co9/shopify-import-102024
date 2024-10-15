@@ -1,9 +1,8 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Logger;
+namespace App\Application\Logger;
 
-use App\Infrastructure\LoggerInterface;
 use Exception;
 
 class Logger implements LoggerInterface

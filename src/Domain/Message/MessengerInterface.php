@@ -1,9 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure;
-
-use App\Domain\Message\ProductMessage;
+namespace App\Domain\Message;
 
 interface MessengerInterface
 {

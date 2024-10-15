@@ -19,7 +19,7 @@ use App\Domain\DTO\ProductPriceDTO;
 use App\Domain\DTO\ProductStockDTO;
 use Symfony\Component\Finder\Finder;
 
-class ImportProcessor
+class ImportProcessor implements ImportInterface
 {
     private AbstractProductImporter $abstractProductImporter;
     private ConcreteProductImporter $concreteProductImporter;
@@ -48,7 +48,7 @@ class ImportProcessor
         $this->managementAttributeImporter = $managementAttributeImporter;
     }
 
-    public function processDirectory(string $directoryPath): array
+    public function processImport(string $directoryPath): array
     {
         $finder = new Finder();
         $finder->files()->in($directoryPath)->name('*.csv');

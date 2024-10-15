@@ -6,20 +6,20 @@ namespace App\Tests\Integration\Infrastructure\RabbitMQ;
 use App\Domain\DTO\AbstractProductDTO;
 use App\Domain\DTO\ConcreteProductDTO;
 use App\Domain\Message\ProductMessage;
-use App\Infrastructure\RabbitMQ\Service;
+use App\Infrastructure\RabbitMQ\Messenger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 class ServiceTest extends KernelTestCase
 {
     private MessageBusInterface $bus;
-    private Service $service;
+    private Messenger $service;
 
     protected function setUp(): void
     {
         self::bootKernel();
         $this->bus = self::getContainer()->get(MessageBusInterface::class);
-        $this->service = new Service($this->bus);
+        $this->service = new Messenger($this->bus);
     }
 
     public function testDispatchAbstractProductMessage(): void
