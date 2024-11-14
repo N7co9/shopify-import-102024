@@ -11,9 +11,6 @@ class ShopifyProductDTO
     private array $metafields;
     private ?array $productOptions;
 
-    // creating placeholder parameters for easier variant creation,
-    // not needed if product only has 1 exact variant, other than that always required
-
     public function __construct(
         string  $title,
         string  $descriptionHtml,

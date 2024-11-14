@@ -15,11 +15,10 @@ use RuntimeException;
 class ProductMessageProcessor implements ProductProcessorInterface
 {
     public function __construct(
-        private ProductToShopifyMapper        $mapper,
-        private GraphQLInterface              $graphQLInterface,
-        private LoggerInterface               $logger,
-        private ProductCreation               $helper,
-        private ManagementAttributesProcessor $attributesProcessor
+        private ProductToShopifyMapper $mapper,
+        private GraphQLInterface       $graphQLInterface,
+        private LoggerInterface        $logger,
+        private ProductCreation        $helper,
     )
     {
     }
@@ -33,14 +32,58 @@ class ProductMessageProcessor implements ProductProcessorInterface
             return;
         }
 
-        $response = $this->sendProductToShopify($shopifyProductDTO);
-        $this->attributesProcessor->processAttributes($shopifyProductDTO, $response);
+        if (empty($shopifyProductDTO->getProductOptions())) {
+            $this->sendProductToShopifyWithoutOptions($shopifyProductDTO);
+        } else {
+            $this->sendProductToShopifyWithOptions($shopifyProductDTO);
+        }
     }
 
-    private function sendProductToShopify(ShopifyProductDTO $shopifyProductDTO): ShopifyResponseDTO
+    private function sendProductToShopifyWithOptions(ShopifyProductDTO $shopifyProductDTO): void
     {
         try {
             $productData = $this->helper->formatProductData($shopifyProductDTO);
+
+            if (empty($productData['productOptions']) || !is_array($productData['productOptions'])) {
+                throw new RuntimeException('Product options are missing or not properly structured');
+            }
+
+            $mutation = $this->helper->getProductSetMutation();
+            $variables = [
+                'synchronous' => true,
+                'productSet' => $productData,
+            ];
+
+            $response = $this->graphQLInterface->executeQuery($mutation, $variables);
+
+            if ($this->hasGraphQLErrors($response)) {
+                $errorMessage = json_encode($response, JSON_THROW_ON_ERROR);
+                throw new RuntimeException(sprintf('GraphQL response contains errors: %s', $errorMessage));
+            }
+
+            $productId = $response['productSet']['product']['id'] ?? 'unknown';
+
+            $this->logger->logSuccess(
+                sprintf('Successfully created product with options, ID: %s', $productId)
+            );
+
+        } catch (\Throwable $e) {
+            $this->logger->logException(
+                new RuntimeException(
+                    sprintf('Error sending product with options to Shopify: %s', $e->getMessage()),
+                    $e->getCode(),
+                    $e
+                )
+            );
+
+        }
+    }
+
+
+    private function sendProductToShopifyWithoutOptions(ShopifyProductDTO $shopifyProductDTO): ShopifyResponseDTO
+    {
+        try {
+            $productData = $this->helper->formatProductDataWithoutOptions($shopifyProductDTO);
             $mutation = $this->helper->getProductCreateMutation();
             $variables = ['input' => $productData];
 
@@ -51,30 +94,32 @@ class ProductMessageProcessor implements ProductProcessorInterface
                 throw new RuntimeException(sprintf('GraphQL response contains errors: %s', $errorMessage));
             }
 
+            $productId = $response['productCreate']['product']['id'] ?? 'unknown';
+
             $this->logger->logSuccess(
-                sprintf('Successfully created product with ID: %s', $response['productCreate']['product']['id'] ?? 'unknown')
+                sprintf('Successfully created product without options, ID: %s', $productId)
             );
-            return new ShopifyResponseDTO
-            (
-                $response['productCreate']['product']['id'],
+
+            return new ShopifyResponseDTO(
+                $productId,
                 true,
-                $response['productCreate']['userErrors'],
-                $response['productCreate']['product']['metafields']['edges']
+                $response['productCreate']['userErrors'] ?? [],
+                []
             );
         } catch (\Throwable $e) {
             $this->logger->logException(
                 new RuntimeException(
-                    sprintf('Error sending product to Shopify: %s', $e->getMessage()),
+                    sprintf('Error sending product without options to Shopify: %s', $e->getMessage()),
                     $e->getCode(),
                     $e
                 )
             );
-            return new ShopifyResponseDTO
-            (
-                $response['productCreate']['product']['id'] ?? 'No PID in Response',
+
+            return new ShopifyResponseDTO(
+                'No PID in Response',
                 false,
                 $response['productCreate']['userErrors'] ?? [],
-                $response['productCreate']['product']['metafields']['edges'] ?? []
+                []
             );
         }
     }
@@ -83,6 +128,6 @@ class ProductMessageProcessor implements ProductProcessorInterface
     {
         return
             !empty($response['errors']) ||
-            !empty($response['data']['productCreate']['userErrors']);
+            !empty($response['productSet']['userErrors']);
     }
 }

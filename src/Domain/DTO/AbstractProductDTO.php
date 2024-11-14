@@ -14,7 +14,7 @@ class AbstractProductDTO
     private string $taxSetName;
     private ?string $metaTitleEn;
     private ?string $metaTitleDe;
-    private ?array $managementAttributes;  // e.g. productOptions (Shopify Context)
+    private ?array $managementAttributes;
 
     public function __construct(
         string  $abstractSku,

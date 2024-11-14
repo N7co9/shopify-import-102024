@@ -9,6 +9,8 @@ use Symfony\Component\HttpFoundation\File\File;
 
 class AbstractProductImporter
 {
+    private array $productBuffer = [];
+
     public function import(string $filePath): array
     {
         $file = $this->isValidFile($filePath);
@@ -18,7 +20,6 @@ class AbstractProductImporter
         $fileObject->setCsvControl(',', '"', "\\");
 
         $header = [];
-        $abstractProductDTOs = [];
 
         foreach ($fileObject as $index => $row) {
             if ($index === 0) {
@@ -30,7 +31,6 @@ class AbstractProductImporter
             }
 
             $record = array_combine($header, $row);
-
             $managementAttributes = [];
 
             foreach ($record as $key => $value) {
@@ -53,10 +53,43 @@ class AbstractProductImporter
                 $managementAttributes
             );
 
-            $abstractProductDTOs[] = $abstractProductDTO;
+            $this->accumulateProduct($abstractProductDTO);
         }
 
-        return $abstractProductDTOs;
+        return $this->getMergedProducts();
+    }
+
+    private function accumulateProduct(AbstractProductDTO $abstractProductDTO): void
+    {
+        $productName = $abstractProductDTO->getNameEn();
+
+        if (isset($this->productBuffer[$productName])) {
+            $existingDTO = $this->productBuffer[$productName];
+            $existingAttributes = $existingDTO->getManagementAttributes();
+            $newAttributes = $abstractProductDTO->getManagementAttributes();
+
+            if (isset($newAttributes['color'])) {
+                if (!isset($existingAttributes['color'])) {
+                    $existingAttributes['color'] = [];
+                } elseif (!is_array($existingAttributes['color'])) {
+                    $existingAttributes['color'] = [$existingAttributes['color']];
+                }
+
+                $existingAttributes['color'] = array_unique(
+                    array_merge($existingAttributes['color'], (array)$newAttributes['color'])
+                );
+            }
+
+            $existingDTO->setManagementAttributes($existingAttributes);
+        } else {
+            $this->productBuffer[$productName] = $abstractProductDTO;
+        }
+    }
+
+
+    private function getMergedProducts(): array
+    {
+        return array_values($this->productBuffer);
     }
 
     private function isValidFile(string $filePath): File

@@ -4,115 +4,66 @@ declare(strict_types=1);
 namespace App\Application\Product\Transport\Tools;
 
 use App\Domain\DTO\ShopifyProductDTO;
-use App\Domain\DTO\ShopifyResponseDTO;
 
 class ProductCreation
 {
     public function getProductCreateMutation(): string
     {
         return <<<'GRAPHQL'
-            mutation createProductMetafields($input: ProductInput!) {
+            mutation CreateProductWithoutOptions($input: ProductInput!) {
                 productCreate(input: $input) {
                     product {
                         id
-                        metafields(first: 3) {
-                            edges {
-                                node {
-                                    id
-                                    namespace
-                                    key
-                                    value
-                                }
+                        title
+                    }
+                    userErrors {
+                        field
+                        message
+                    }
+                }
+            }
+    GRAPHQL;
+    }
+
+    public function formatProductDataWithoutOptions(ShopifyProductDTO $dto): array
+    {
+        return [
+            'title' => $dto->getTitle(),
+            'status' => 'ACTIVE',
+            'metafields' => $this->formatMetafields($dto->getMetafields())
+        ];
+    }
+
+    public function getProductSetMutation(): string
+    {
+        return <<<'GRAPHQL'
+            mutation createProductWithColorOption($productSet: ProductSetInput!, $synchronous: Boolean!) {
+                productSet(synchronous: $synchronous, input: $productSet) {
+                    product {
+                        id
+                        title
+                        options(first: 5) {
+                            name
+                            position
+                            optionValues {
+                                name
                             }
                         }
                     }
                     userErrors {
-                        message
                         field
+                        message
                     }
                 }
             }
         GRAPHQL;
     }
 
-    public function getProductOptionsCreateMutation(): string
-    {
-        return <<<'GRAPHQL'
-             mutation createOptions($productId: ID!, $options: [OptionCreateInput!]!, $variantStrategy: ProductOptionCreateVariantStrategy) {
-                productOptionsCreate(productId: $productId, options: $options, variantStrategy: $variantStrategy) {
-                  userErrors {
-                    field
-                    message
-                    code
-                  }
-                  product {
-                    id
-                    variants(first: 10) {
-                      nodes {
-                        id
-                        title
-                        selectedOptions {
-                          name
-                          value
-                        }
-                      }
-                    }
-                    options {
-                      id
-                      name
-                      values
-                      position
-                      optionValues {
-                        id
-                        name
-                        hasVariants
-                      }
-                    }
-                  }
-                }
-              }
-    GRAPHQL;
-    }
-
-
-    public function formatProductOptions(ShopifyProductDTO $shopifyProductDTO, ShopifyResponseDTO $responseDTO, string $variantStrategy = null): array
-    {
-        $options = [];
-        $productOptions = $shopifyProductDTO->getProductOptions();
-
-        $limitedOptions = array_slice($productOptions, 0, 3);
-
-        foreach ($limitedOptions as $key => $value) {
-            $formattedValues = array_map(function($val) {
-                return ['name' => $val];
-            }, is_array($value) ? $value : [$value]);
-
-            $options[] = [
-                'name' => ucfirst(str_replace('_', ' ', $key)),
-                'values' => $formattedValues
-            ];
-        }
-
-        $variables = [
-            'productId' => $responseDTO->getPID(),
-            'options' => $options
-        ];
-
-        if ($variantStrategy) {
-            $variables['variantStrategy'] = $variantStrategy;
-        }
-
-        return $variables;
-    }
-
-
-
     public function formatProductData(ShopifyProductDTO $dto): array
     {
         $productData = [
             'title' => $dto->getTitle(),
-            'descriptionHtml' => $dto->getDescriptionHtml(),
-            'productType' => $dto->getProductType(),
+            'productOptions' => $this->formatProductOptions($dto->getProductOptions()),
             'status' => 'ACTIVE',
         ];
 
@@ -120,13 +71,71 @@ class ProductCreation
             $productData['metafields'] = $this->formatMetafields($dto->getMetafields());
         }
 
+        if (!empty($dto->getProductOptions())) {
+            $productData['variants'] = $this->generateVariants($dto->getProductOptions());
+        }
+
         return $productData;
     }
+
+    private function generateVariants(array $productOptions): array
+    {
+        $options = [];
+        foreach ($productOptions as $option) {
+            $values = array_map(function ($value) use ($option) {
+                if (is_array($value) && isset($value['name'])) {
+                    return ['optionName' => $option['name'], 'name' => $value['name']];
+                }
+                if (is_string($value)) {
+                    return ['optionName' => $option['name'], 'name' => $value];
+                }
+                throw new \UnexpectedValueException("Unexpected value format in product options.");
+            }, $option['values']);
+            $options[] = $values;
+        }
+
+        $combinations = $this->combineOptions($options);
+
+        $variants = [];
+        foreach ($combinations as $combination) {
+            $variants[] = ['optionValues' => $combination];
+        }
+        return $variants;
+    }
+
+    private function combineOptions(array $arrays): array
+    {
+        $result = [[]];
+        foreach ($arrays as $propertyValues) {
+            $temp = [];
+            foreach ($result as $resultItem) {
+                foreach ($propertyValues as $propertyValue) {
+                    $temp[] = array_merge($resultItem, [$propertyValue]);
+                }
+            }
+            $result = $temp;
+        }
+        return $result;
+    }
+
+
+    private function formatProductOptions(array $productOptions): array
+    {
+        $formattedOptions = [];
+        foreach ($productOptions as $option) {
+            $formattedOptions[] = [
+                'name' => $option['name'],
+                'position' => 1,
+                'values' => array_map(fn($value) => ['name' => $value], $option['values']),
+            ];
+        }
+        return $formattedOptions;
+    }
+
 
     public function formatMetafields(array $metafields): array
     {
         $formattedMetafields = [];
-
         foreach ($metafields as $key => $value) {
             if ($value !== null) {
                 $formattedMetafields[] = [
@@ -137,7 +146,6 @@ class ProductCreation
                 ];
             }
         }
-
         return $formattedMetafields;
     }
 
