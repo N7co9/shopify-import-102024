@@ -13,4 +13,6 @@ interface LoggerInterface
 
     public function logSuccess(string $message): void;
 
+    public function logWarning(string $message): void;
+    public function logError(string $message): void;
 }

@@ -14,8 +14,7 @@ class AbstractProductDTO
     private string $taxSetName;
     private ?string $metaTitleEn;
     private ?string $metaTitleDe;
-    private array $labels = [];
-    private array $managementAttributes = [];
+    private ?array $managementAttributes;  // e.g. productOptions (Shopify Context)
 
     public function __construct(
         string  $abstractSku,
@@ -26,7 +25,8 @@ class AbstractProductDTO
         string  $categoryKey,
         string  $taxSetName,
         ?string $metaTitleEn = '',
-        ?string $metaTitleDe = ''
+        ?string $metaTitleDe = '',
+        ?array  $managementAttributes = []
     )
     {
         $this->abstractSku = $abstractSku;
@@ -38,6 +38,7 @@ class AbstractProductDTO
         $this->taxSetName = $taxSetName;
         $this->metaTitleEn = $metaTitleEn;
         $this->metaTitleDe = $metaTitleDe;
+        $this->managementAttributes = $managementAttributes;
     }
 
     public function getMetaTitleDe(): ?string
@@ -128,16 +129,6 @@ class AbstractProductDTO
     public function setAbstractSku(string $abstractSku): void
     {
         $this->abstractSku = $abstractSku;
-    }
-
-    public function getLabels(): array
-    {
-        return $this->labels;
-    }
-
-    public function setLabels(array $labels): void
-    {
-        $this->labels = $labels;
     }
 
     public function getManagementAttributes(): array

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Infrastructure\RabbitMQ;
 
+use App\Application\Logger\LoggerInterface;
 use App\Domain\DTO\AbstractProductDTO;
 use App\Domain\DTO\ConcreteProductDTO;
 use App\Domain\Message\ProductMessage;
@@ -13,13 +14,15 @@ use Symfony\Component\Messenger\MessageBusInterface;
 class ServiceTest extends KernelTestCase
 {
     private MessageBusInterface $bus;
+    private LoggerInterface $logger;
     private Messenger $service;
 
     protected function setUp(): void
     {
         self::bootKernel();
         $this->bus = self::getContainer()->get(MessageBusInterface::class);
-        $this->service = new Messenger($this->bus);
+        $this->logger = self::getContainer()->get(LoggerInterface::class);
+        $this->service = new Messenger($this->bus, $this->logger);
     }
 
     public function testDispatchAbstractProductMessage(): void

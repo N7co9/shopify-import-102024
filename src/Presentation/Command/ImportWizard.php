@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace App\Presentation\Command;
 
-use App\Application\Import\ImportInterface;
 use App\Application\Logger\LoggerInterface;
 use App\Application\MOM\TransportInterface;
+use App\Application\Product\Import\ImportInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
