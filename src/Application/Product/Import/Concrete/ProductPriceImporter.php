@@ -36,7 +36,8 @@ class ProductPriceImporter
             $productPriceDTO = new ProductPriceDTO(
                 $sku,
                 (float)$record['value_gross'],
-                $record['currency']
+                $record['currency'],
+                $record['price_type']
             );
 
             $productPriceDTOs[] = $productPriceDTO;

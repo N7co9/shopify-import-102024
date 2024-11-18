@@ -8,15 +8,29 @@ class ProductPriceDTO
     private string $sku;
     private float $priceGross;
     private string $currency;
+    private string $priceType;
 
     public function __construct(
         string $sku,
-        float $priceGross,
-        string $currency
-    ) {
+        float  $priceGross,
+        string $currency,
+        string $priceType,
+    )
+    {
         $this->sku = $sku;
         $this->priceGross = $priceGross;
         $this->currency = $currency;
+        $this->priceType = $priceType;
+    }
+
+    public function getPriceType(): string
+    {
+        return $this->priceType;
+    }
+
+    public function setPriceType(string $priceType): void
+    {
+        $this->priceType = $priceType;
     }
 
     public function getSku(): string

@@ -24,15 +24,18 @@ class ProductToShopifyMapper
         $productType = $abstractProductDTO->getCategoryKey();
 
         $productOptions = $this->extractColorOption($abstractProductDTO->getManagementAttributes());
-
         $metafields = $this->createProductMetafields($abstractProductDTO);
+        $media = $this->formatMediaForShopify($abstractProductDTO->getMedia());
+        $price = $abstractProductDTO->getPrice();
 
         return new ShopifyProductDTO(
             $title,
             $descriptionHtml,
             $productType,
             $metafields,
-            $productOptions
+            $productOptions,
+            $media,
+            $price
         );
     }
 
@@ -63,5 +66,21 @@ class ProductToShopifyMapper
         }
 
         return [];
+    }
+
+    private function formatMediaForShopify(array $media): array
+    {
+        $formattedMedia = [];
+
+        foreach ($media as $mediaItem) {
+            $formattedMedia[] = [
+                'originalSource' => $mediaItem['externalUrlLarge'] ?? '',
+                'alt' => $mediaItem['imageSetName'] ?? '',
+                'filename' => $mediaItem['productImageKey'] ?? '',
+                'mediaContentType' => 'IMAGE'
+            ];
+        }
+
+        return $formattedMedia;
     }
 }

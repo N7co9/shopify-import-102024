@@ -10,13 +10,17 @@ class ShopifyProductDTO
     private ?string $productType;
     private array $metafields;
     private ?array $productOptions;
+    private ?array $media;
+    private ?array $price;
 
     public function __construct(
         string  $title,
         string  $descriptionHtml,
         ?string $productType = null,
         array   $metafields = [],
-        ?array  $productOptions = []
+        ?array  $productOptions = [],
+        ?array  $media = [],
+        ?array  $price = []
     )
     {
         $this->title = $title;
@@ -24,6 +28,28 @@ class ShopifyProductDTO
         $this->productType = $productType;
         $this->metafields = $metafields;
         $this->productOptions = $productOptions;
+        $this->media = $media;
+        $this->price = $price;
+    }
+
+    public function getPrice(): ?array
+    {
+        return $this->price;
+    }
+
+    public function setPrice(?array $price): void
+    {
+        $this->price = $price;
+    }
+
+    public function getMedia(): ?array
+    {
+        return $this->media;
+    }
+
+    public function setMedia(?array $media): void
+    {
+        $this->media = $media;
     }
 
     public function getTitle(): string

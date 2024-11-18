@@ -15,6 +15,8 @@ class AbstractProductDTO
     private ?string $metaTitleEn;
     private ?string $metaTitleDe;
     private ?array $managementAttributes;
+    public ?array $media;
+    public ?array $price;
 
     public function __construct(
         string  $abstractSku,
@@ -26,7 +28,9 @@ class AbstractProductDTO
         string  $taxSetName,
         ?string $metaTitleEn = '',
         ?string $metaTitleDe = '',
-        ?array  $managementAttributes = []
+        ?array  $managementAttributes = [],
+        ?array  $media = [],
+        ?array $price = []
     )
     {
         $this->abstractSku = $abstractSku;
@@ -39,6 +43,28 @@ class AbstractProductDTO
         $this->metaTitleEn = $metaTitleEn;
         $this->metaTitleDe = $metaTitleDe;
         $this->managementAttributes = $managementAttributes;
+        $this->media = $media;
+        $this->price = $price;
+    }
+
+    public function getPrice(): ?array
+    {
+        return $this->price;
+    }
+
+    public function setPrice(?array $price): void
+    {
+        $this->price = $price;
+    }
+
+    public function getMedia(): ?array
+    {
+        return $this->media;
+    }
+
+    public function setMedia(?array $media): void
+    {
+        $this->media = $media;
     }
 
     public function getMetaTitleDe(): ?string

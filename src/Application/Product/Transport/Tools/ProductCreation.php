@@ -7,78 +7,52 @@ use App\Domain\DTO\ShopifyProductDTO;
 
 class ProductCreation
 {
-    public function getProductCreateMutation(): string
+
+    public function __construct
+    (
+        private StructureAndFormat $structureAndFormat
+    )
     {
-        return <<<'GRAPHQL'
-            mutation CreateProductWithoutOptions($input: ProductInput!) {
-                productCreate(input: $input) {
-                    product {
-                        id
-                        title
-                    }
-                    userErrors {
-                        field
-                        message
-                    }
-                }
-            }
-    GRAPHQL;
     }
 
     public function formatProductDataWithoutOptions(ShopifyProductDTO $dto): array
     {
         return [
             'title' => $dto->getTitle(),
+            'descriptionHtml' => $dto->getDescriptionHtml(),
+            'productType' => $dto->getProductType(),
             'status' => 'ACTIVE',
-            'metafields' => $this->formatMetafields($dto->getMetafields())
+            'metafields' => $this->structureAndFormat->formatMetafields($dto->getMetafields())
         ];
-    }
-
-    public function getProductSetMutation(): string
-    {
-        return <<<'GRAPHQL'
-            mutation createProductWithColorOption($productSet: ProductSetInput!, $synchronous: Boolean!) {
-                productSet(synchronous: $synchronous, input: $productSet) {
-                    product {
-                        id
-                        title
-                        options(first: 5) {
-                            name
-                            position
-                            optionValues {
-                                name
-                            }
-                        }
-                    }
-                    userErrors {
-                        field
-                        message
-                    }
-                }
-            }
-        GRAPHQL;
     }
 
     public function formatProductData(ShopifyProductDTO $dto): array
     {
         $productData = [
             'title' => $dto->getTitle(),
-            'productOptions' => $this->formatProductOptions($dto->getProductOptions()),
+            'descriptionHtml' => $dto->getDescriptionHtml(),
+            'productOptions' => $this->structureAndFormat->formatProductOptions($dto->getProductOptions()),
+            'productType' => $dto->getProductType(),
             'status' => 'ACTIVE',
         ];
 
         if (!empty($dto->getMetafields())) {
-            $productData['metafields'] = $this->formatMetafields($dto->getMetafields());
+            $productData['metafields'] = $this->structureAndFormat->formatMetafields($dto->getMetafields());
         }
 
         if (!empty($dto->getProductOptions())) {
-            $productData['variants'] = $this->generateVariants($dto->getProductOptions());
+            $productData['variants'] = $this->generateVariants($dto->getProductOptions(), $dto->getPrice());
+        }
+
+        if (!empty($dto->getMedia())) {
+            $productData['files'] = $this->structureAndFormat->formatMedia($dto->getMedia());
         }
 
         return $productData;
     }
 
-    private function generateVariants(array $productOptions): array
+
+    private function generateVariants(array $productOptions, array $prices = []): array
     {
         $options = [];
         foreach ($productOptions as $option) {
@@ -97,11 +71,36 @@ class ProductCreation
         $combinations = $this->combineOptions($options);
 
         $variants = [];
-        foreach ($combinations as $combination) {
-            $variants[] = ['optionValues' => $combination];
+        foreach ($combinations as $index => $combination) {
+            $variant = ['optionValues' => $combination];
+
+            $filteredPrices = array_filter($prices, fn($price) => $price['currency'] === 'EUR');
+
+            $defaultPrice = null;
+            $compareAtPrice = null;
+
+            foreach ($filteredPrices as $price) {
+                if ($price['priceType'] === 'DEFAULT') {
+                    $defaultPrice = $price['priceGross'];
+                } elseif ($price['priceType'] === 'ORIGINAL') {
+                    $compareAtPrice = $price['priceGross'];
+                }
+            }
+
+            if ($defaultPrice !== null) {
+                $variant['price'] = $defaultPrice;
+            }
+            if ($compareAtPrice !== null) {
+                $variant['compareAtPrice'] = $compareAtPrice;
+            }
+
+            $variants[] = $variant;
         }
+
         return $variants;
     }
+
+
 
     private function combineOptions(array $arrays): array
     {
@@ -116,49 +115,5 @@ class ProductCreation
             $result = $temp;
         }
         return $result;
-    }
-
-
-    private function formatProductOptions(array $productOptions): array
-    {
-        $formattedOptions = [];
-        foreach ($productOptions as $option) {
-            $formattedOptions[] = [
-                'name' => $option['name'],
-                'position' => 1,
-                'values' => array_map(fn($value) => ['name' => $value], $option['values']),
-            ];
-        }
-        return $formattedOptions;
-    }
-
-
-    public function formatMetafields(array $metafields): array
-    {
-        $formattedMetafields = [];
-        foreach ($metafields as $key => $value) {
-            if ($value !== null) {
-                $formattedMetafields[] = [
-                    'key' => strtolower(str_replace(' ', '_', $key)),
-                    'namespace' => 'global',
-                    'value' => $this->convertValueToString($value),
-                    'type' => 'single_line_text_field',
-                ];
-            }
-        }
-        return $formattedMetafields;
-    }
-
-    public function convertValueToString($value): string
-    {
-        if (is_array($value)) {
-            return implode(', ', array_map([$this, 'convertValueToString'], $value));
-        }
-
-        if (is_bool($value)) {
-            return $value ? 'Yes' : 'No';
-        }
-
-        return (string)$value;
     }
 }

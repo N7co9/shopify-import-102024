@@ -5,6 +5,7 @@ namespace App\Application\Product\Transport;
 
 use App\Application\Logger\LoggerInterface;
 use App\Application\Mapper\ProductToShopifyMapper;
+use App\Application\Product\Transport\Tools\Mutation;
 use App\Application\Product\Transport\Tools\ProductCreation;
 use App\Domain\API\GraphQLInterface;
 use App\Domain\DTO\AbstractProductDTO;
@@ -19,6 +20,7 @@ class ProductMessageProcessor implements ProductProcessorInterface
         private GraphQLInterface       $graphQLInterface,
         private LoggerInterface        $logger,
         private ProductCreation        $helper,
+        private Mutation               $mutation
     )
     {
     }
@@ -48,7 +50,7 @@ class ProductMessageProcessor implements ProductProcessorInterface
                 throw new RuntimeException('Product options are missing or not properly structured');
             }
 
-            $mutation = $this->helper->getProductSetMutation();
+            $mutation = $this->mutation->getProductSetMutation();
             $variables = [
                 'synchronous' => true,
                 'productSet' => $productData,
@@ -75,7 +77,6 @@ class ProductMessageProcessor implements ProductProcessorInterface
                     $e
                 )
             );
-
         }
     }
 
@@ -84,7 +85,7 @@ class ProductMessageProcessor implements ProductProcessorInterface
     {
         try {
             $productData = $this->helper->formatProductDataWithoutOptions($shopifyProductDTO);
-            $mutation = $this->helper->getProductCreateMutation();
+            $mutation = $this->mutation->getProductCreateMutation();
             $variables = ['input' => $productData];
 
             $response = $this->graphQLInterface->executeQuery($mutation, $variables);

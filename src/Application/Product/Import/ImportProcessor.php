@@ -63,12 +63,65 @@ class ImportProcessor implements ImportInterface
         $images = $this->imageImporter->import($imageFilePath);
 
         $abstractProductDTOs = $this->abstractProductImporter->import($abstractFilePath);
+        $abstractProductDTOs = $this->attachImagesToAbstractProducts($abstractProductDTOs, $images);
+        $abstractProductDTOs = $this->attachPricesToAbstractProducts($abstractProductDTOs, $prices);
+
         $concreteProductDTOs = $this->createConcreteProductDTOs($concreteProducts, $prices, $stocks, $images);
 
         return [
             'abstract_products' => $abstractProductDTOs,
             'concrete_products' => $concreteProductDTOs
         ];
+    }
+
+    private function attachPricesToAbstractProducts(array $abstractProductDTOs, array $priceDTOs): array
+    {
+        $abstractProductMap = [];
+        foreach ($abstractProductDTOs as $abstractProductDTO) {
+            $abstractProductMap[$abstractProductDTO->getAbstractSku()] = $abstractProductDTO;
+        }
+
+        foreach ($priceDTOs as $priceDTO) {
+            $abstractSku = $priceDTO->getSku();
+            if (isset($abstractProductMap[$abstractSku])) {
+                $abstractProductMap[$abstractSku]->price[] = [
+                    'priceGross' => $priceDTO->getPriceGross(),
+                    'currency' => $priceDTO->getCurrency(),
+                    'priceType' => $priceDTO->getPriceType()
+                ];
+            }
+        }
+
+        return array_values($abstractProductMap);
+    }
+
+
+
+    private function attachImagesToAbstractProducts(array $abstractProductDTOs, array $imageDTOs): array
+    {
+        $abstractProductMap = [];
+
+        foreach ($abstractProductDTOs as $abstractProductDTO) {
+            $abstractProductMap[$abstractProductDTO->getAbstractSku()] = $abstractProductDTO;
+        }
+
+        foreach ($imageDTOs as $imageDTO) {
+            $abstractSku = $imageDTO->getAbstractSku();
+            if (isset($abstractProductMap[$abstractSku])) {
+                $abstractProductMap[$abstractSku]->media[] = [
+                    'imageSetName' => $imageDTO->getImageSetName(),
+                    'externalUrlLarge' => $imageDTO->getExternalUrlLarge(),
+                    'externalUrlSmall' => $imageDTO->getExternalUrlSmall(),
+                    'locale' => $imageDTO->getLocale(),
+                    'abstractSku' => $imageDTO->getAbstractSku(),
+                    'concreteSku' => $imageDTO->getConcreteSku(),
+                    'sortOrder' => $imageDTO->getSortOrder(),
+                    'productImageKey' => $imageDTO->getProductImageKey(),
+                ];
+            }
+        }
+
+        return array_values($abstractProductMap);
     }
 
     private function createConcreteProductDTOs(array $concreteProducts, array $prices, array $stocks, array $images): array
