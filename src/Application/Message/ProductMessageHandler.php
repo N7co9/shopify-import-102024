@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Application\Message;
 
 
+use App\Application\Message\Tools\LookupHelper;
 use App\Application\Product\Transport\ProductProcessorInterface;
 use App\Domain\DTO\AbstractProductDTO;
 use App\Domain\DTO\ConcreteProductDTO;
@@ -13,7 +14,11 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 class ProductMessageHandler
 {
-    public function __construct(private ProductProcessorInterface $productProcessor)
+    public function __construct
+    (
+        private ProductProcessorInterface $productProcessor,
+        private LookupHelper              $lookupHelper
+    )
     {
     }
 
@@ -24,9 +29,17 @@ class ProductMessageHandler
         if ($productDTO instanceof AbstractProductDTO) {
             $this->productProcessor->processProduct($productDTO);
         } elseif ($productDTO instanceof ConcreteProductDTO) {
-            echo(''); // TO DODODOO
+            if (!empty($this->checkParentProductExistence($productDTO))) {
+                echo '';
+                // TODO
+            }
         } else {
             throw new \InvalidArgumentException('Unknown product DTO type');
         }
+    }
+
+    public function checkParentProductExistence(ConcreteProductDTO $productDTO): array
+    {
+        return $this->lookupHelper->fetchExistingProductInformation($productDTO->getNameEn());
     }
 }
