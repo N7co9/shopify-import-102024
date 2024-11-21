@@ -96,7 +96,6 @@ class ImportProcessor implements ImportInterface
     }
 
 
-
     private function attachImagesToAbstractProducts(array $abstractProductDTOs, array $imageDTOs): array
     {
         $abstractProductMap = [];
@@ -144,6 +143,7 @@ class ImportProcessor implements ImportInterface
                 $concreteProduct->getDescriptionEn(),
                 $concreteProduct->getDescriptionDe(),
                 $productStock?->getQuantity(),
+                $productStock?->getLocation(),
                 $productStock?->isNeverOutOfStock(),
                 $productPrice?->getPriceGross(),
                 $productPrice?->getCurrency(),

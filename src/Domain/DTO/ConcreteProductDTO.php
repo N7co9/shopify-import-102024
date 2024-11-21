@@ -12,6 +12,7 @@ class ConcreteProductDTO
     private string $descriptionEn;
     private string $descriptionDe;
     private ?int $quantity;
+    private string $location;
     private ?bool $isNeverOutOfStock;
     private ?float $priceGross;
     private ?string $currency;
@@ -26,8 +27,9 @@ class ConcreteProductDTO
         string  $nameDe,
         string  $descriptionEn,
         string  $descriptionDe,
-        ?int     $quantity = null,
-        ?bool    $isNeverOutOfStock = null,
+        ?int    $quantity = null,
+        ?string  $location = 'DEFAULT',
+        ?bool   $isNeverOutOfStock = null,
         ?float  $priceGross = null,
         ?string $currency = null,
         ?string $imageUrl = '',
@@ -42,12 +44,23 @@ class ConcreteProductDTO
         $this->descriptionEn = $descriptionEn;
         $this->descriptionDe = $descriptionDe;
         $this->quantity = $quantity;
+        $this->location = $location;
         $this->isNeverOutOfStock = $isNeverOutOfStock;
         $this->priceGross = $priceGross;
         $this->currency = $currency;
         $this->imageUrl = $imageUrl;
         $this->isSearchableEn = $isSearchableEn;
         $this->isSearchableDe = $isSearchableDe;
+    }
+
+    public function getLocation(): string
+    {
+        return $this->location;
+    }
+
+    public function setLocation(string $location): void
+    {
+        $this->location = $location;
     }
 
     public function getAbstractSku(): string

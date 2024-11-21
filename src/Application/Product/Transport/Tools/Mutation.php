@@ -47,7 +47,7 @@ class Mutation
                             }
                         }
                         variants(first: 5) {
-                            nodes {
+                            nodes {                      
                                 title
                                 price
                                 compareAtPrice
@@ -70,4 +70,5 @@ class Mutation
             }
         GRAPHQL;
     }
+
 }

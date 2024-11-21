@@ -39,10 +39,11 @@ class ConcreteProductImporter
                 $record['description.en_US'],
                 $record['description.de_DE'],
                 null,
+                '',
                 null,
                 null,
                 null,
-                null,
+                '',
                 (bool)$record['is_searchable.en_US'],
                 (bool)$record['is_searchable.de_DE']
             );

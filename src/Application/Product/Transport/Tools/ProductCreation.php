@@ -7,9 +7,7 @@ use App\Domain\DTO\ShopifyProductDTO;
 
 class ProductCreation
 {
-
-    public function __construct
-    (
+    public function __construct(
         private StructureAndFormat $structureAndFormat
     )
     {
@@ -31,7 +29,7 @@ class ProductCreation
         $productData = [
             'title' => $dto->getTitle(),
             'descriptionHtml' => $dto->getDescriptionHtml(),
-            'productOptions' => $this->structureAndFormat->formatProductOptions($dto->getProductOptions()),
+            'productOptions' => $this->generateValidProductOptions($dto->getProductOptions()),
             'productType' => $dto->getProductType(),
             'status' => 'ACTIVE',
         ];
@@ -41,7 +39,11 @@ class ProductCreation
         }
 
         if (!empty($dto->getProductOptions())) {
-            $productData['variants'] = $this->generateVariants($dto->getProductOptions(), $dto->getPrice());
+            $productData['variants'] = $this->generateVariants(
+                $dto->getProductOptions(),
+                $dto->getPrice(),
+                $this->extractSkusFromProductOptions($dto->getProductOptions())
+            );
         }
 
         if (!empty($dto->getMedia())) {
@@ -51,11 +53,40 @@ class ProductCreation
         return $productData;
     }
 
+    private function generateValidProductOptions(array $productOptions): array
+    {
+        $validProductOptions = [];
+        foreach ($productOptions as $option) {
+            if (isset($option['name'], $option['values']) && is_array($option['values'])) {
+                $formattedValues = array_map(function ($value) {
+                    if (is_string($value)) {
+                        return ['name' => $value];
+                    }
+                    throw new \UnexpectedValueException("Invalid value format in product options.");
+                }, array_values($option['values']));
 
-    private function generateVariants(array $productOptions, array $prices = []): array
+                $validProductOptions[] = [
+                    'name' => $option['name'],
+                    'position' => $option['position'] ?? 1,
+                    'values' => $formattedValues,
+                ];
+            } else {
+                throw new \UnexpectedValueException("Invalid product option structure.");
+            }
+        }
+        return $validProductOptions;
+    }
+
+
+    private function generateVariants(array $productOptions, array $prices = [], array $skus = []): array
     {
         $options = [];
+
         foreach ($productOptions as $option) {
+            if (!isset($option['name'], $option['values']) || !is_array($option['values'])) {
+                throw new \UnexpectedValueException("Invalid product option structure. Each option must have a 'name' and 'values' as an array.");
+            }
+
             $values = array_map(function ($value) use ($option) {
                 if (is_array($value) && isset($value['name'])) {
                     return ['optionName' => $option['name'], 'name' => $value['name']];
@@ -63,8 +94,9 @@ class ProductCreation
                 if (is_string($value)) {
                     return ['optionName' => $option['name'], 'name' => $value];
                 }
-                throw new \UnexpectedValueException("Unexpected value format in product options.");
+                throw new \UnexpectedValueException("Unexpected value format in product option values.");
             }, $option['values']);
+
             $options[] = $values;
         }
 
@@ -72,10 +104,12 @@ class ProductCreation
 
         $variants = [];
         foreach ($combinations as $index => $combination) {
-            $variant = ['optionValues' => $combination];
+            $variant = [
+                'optionValues' => $combination,
+                'sku' => isset($skus[$index]) ? (string)$skus[$index] : null,
+            ];
 
             $filteredPrices = array_filter($prices, fn($price) => $price['currency'] === 'EUR');
-
             $defaultPrice = null;
             $compareAtPrice = null;
 
@@ -101,6 +135,18 @@ class ProductCreation
     }
 
 
+    private function extractSkusFromProductOptions(array $productOptions): array
+    {
+        $skus = [];
+        foreach ($productOptions as $option) {
+            if ($option['name'] === 'color' && isset($option['values'])) {
+                foreach ($option['values'] as $abstractSku => $color) {
+                    $skus[] = $abstractSku;
+                }
+            }
+        }
+        return $skus;
+    }
 
     private function combineOptions(array $arrays): array
     {

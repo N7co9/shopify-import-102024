@@ -69,22 +69,36 @@ class AbstractProductImporter
             $newAttributes = $abstractProductDTO->getManagementAttributes();
 
             if (isset($newAttributes['color'])) {
-                if (!isset($existingAttributes['color'])) {
+                if (!isset($existingAttributes['color']) || !is_array($existingAttributes['color'])) {
                     $existingAttributes['color'] = [];
-                } elseif (!is_array($existingAttributes['color'])) {
-                    $existingAttributes['color'] = [$existingAttributes['color']];
                 }
 
-                $existingAttributes['color'] = array_unique(
-                    array_merge($existingAttributes['color'], (array)$newAttributes['color'])
-                );
+                $sku = $abstractProductDTO->getAbstractSku();
+                foreach ((array)$newAttributes['color'] as $color) {
+                    $existingAttributes['color'][$sku] = $color;
+                }
             }
 
             $existingDTO->setManagementAttributes($existingAttributes);
         } else {
+            $managementAttributes = $abstractProductDTO->getManagementAttributes();
+
+            if (isset($managementAttributes['color'])) {
+                $mappedColors = [];
+                $sku = $abstractProductDTO->getAbstractSku();
+
+                foreach ((array)$managementAttributes['color'] as $color) {
+                    $mappedColors[$sku] = $color;
+                }
+
+                $managementAttributes['color'] = $mappedColors;
+                $abstractProductDTO->setManagementAttributes($managementAttributes);
+            }
+
             $this->productBuffer[$productName] = $abstractProductDTO;
         }
     }
+
 
 
     private function getMergedProducts(): array

@@ -39,6 +39,7 @@ class ProductStockImporter
 
             $productStockDTO = new ProductStockDTO(
                 $sku,
+                (string)$record['name'],
                 (int)$record['quantity'],
                 $neverOutOfStock
             );
