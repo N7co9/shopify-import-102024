@@ -80,4 +80,26 @@ class LookupHelper
 
         return $this->graphQL->executeQuery($query, ['productId' => $PID]);
     }
+
+    public function checkVariantInventory(string $PID): array
+    {
+        $query = <<<'GRAPHQL'
+        query GetInventoryItemsForProduct($productId: ID!) {
+          product(id: $productId) {
+            variants(first: 10) {
+              edges {
+                node {
+                  id
+                  inventoryItem {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+        GRAPHQL;
+
+        return $this->graphQL->executeQuery($query, ['productId' => $PID]);
+    }
 }

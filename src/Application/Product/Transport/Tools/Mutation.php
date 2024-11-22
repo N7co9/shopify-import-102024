@@ -71,4 +71,41 @@ class Mutation
         GRAPHQL;
     }
 
+    public function getProductVariantsBulkUpdateMutation(): string
+    {
+        return <<<'GRAPHQL'
+            mutation UpdateProductVariantsOptionValuesInBulk($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+                productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+                    product {
+                        id
+                        title
+                        options {
+                            id
+                            position
+                            name
+                            values
+                            optionValues {
+                                id
+                                name
+                                hasVariants
+                            }
+                        }
+                    }
+                    productVariants {
+                        id
+                        title
+                        selectedOptions {
+                            name
+                            value
+                        }
+                    }
+                    userErrors {
+                        field
+                        message
+                    }
+                }
+            }
+        GRAPHQL;
+    }
+
 }
