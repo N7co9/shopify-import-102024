@@ -93,10 +93,6 @@ class VariantMessageProcessor implements VariantProcessorInterface
         return [
             'id' => $variantId,
             'price' => $concreteProductDTO->getPriceGross(),
-            'inventoryQuantities' => [
-                'availableQuantity' => $concreteProductDTO->getQuantity(),
-                'locationId' => $locationID ?? '',
-            ],
             'mediaSrc' => $concreteProductDTO->getImageUrl(),
         ];
     }
