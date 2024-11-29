@@ -59,7 +59,7 @@ class ImportWizard extends Command
         $progressBar->start();
 
         try {
-            $result = $this->import->processImport($directory);
+            $products = $this->import->processImport($directory);
             $progressBar->finish();
             $io->newLine(2);
             $this->logger->logSuccess(sprintf('Import erfolgreich für Verzeichnis: %s', $directory));
@@ -71,31 +71,21 @@ class ImportWizard extends Command
             return Command::FAILURE;
         }
 
-        $abstractCount = count($result['abstract_products']);
-        $concreteCount = count($result['concrete_products']);
-
         $event = $stopwatch->stop('import-process');
         $duration = $event->getDuration() / 1000;
 
         $this->logger->logStatistics([
             'directory' => $directory,
-            'abstract_products' => $abstractCount,
-            'concrete_products' => $concreteCount,
-            'execution_time' => $duration
+            'execution_time' => $duration,
+            'products_count' => count($products),
         ]);
 
-        $io->success(sprintf('Import abgeschlossen: %d Abstract Products, %d Concrete Products in %.2f Sekunden.',
-            $abstractCount,
-            $concreteCount,
-            $duration
-        ));
+        $this->displayDetailedStatistics($io, count($products), $duration);
 
-        $this->displayDetailedStatistics($io);
-
-        if ($io->confirm('Möchten Sie die DTOs jetzt an RabbitMQ senden?', false)) {
-            $this->sendMessages($result, $io);
+        if ($io->confirm('Möchten Sie die Produkte jetzt an RabbitMQ senden?', false)) {
+            $this->sendProducts($products, $io);
         } else {
-            $io->note('Die DTOs wurden nicht versendet.');
+            $io->note('Die Produkte wurden nicht versendet.');
         }
 
         $this->logger->writeStatistics();
@@ -103,33 +93,19 @@ class ImportWizard extends Command
         return Command::SUCCESS;
     }
 
-    private function sendMessages(array $result, SymfonyStyle $io): void
+    private function sendProducts(array $products, SymfonyStyle $io): void
     {
-        $io->section('📤 Sende DTOs an RabbitMQ...');
+        $io->section('📤 Sende Produkte an RabbitMQ...');
 
-        $abstractSent = $this->sendDTOs($result['abstract_products'], $io, 'Abstract Products');
-        $concreteSent = $this->sendDTOs($result['concrete_products'], $io, 'Concrete Products');
-
-        if ($abstractSent && $concreteSent) {
-            $io->success('Alle DTOs erfolgreich an RabbitMQ gesendet.');
-            $this->logger->logSuccess('Alle DTOs erfolgreich an RabbitMQ gesendet.');
-        } else {
-            $io->warning('Einige DTOs konnten nicht gesendet werden.');
-            $this->logger->logError('Einige DTOs konnten nicht gesendet werden.');
-        }
-    }
-
-    private function sendDTOs(array $DTOs, SymfonyStyle $io, string $type): bool
-    {
-        $count = count($DTOs);
+        $count = count($products);
         $progressBar = $io->createProgressBar($count);
         $progressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s%');
 
         $allSent = true;
-        foreach ($DTOs as $dto) {
-            if (!$this->transport->dispatch($dto)) {
-                $io->error(sprintf('Fehler beim Senden der Nachricht für %s DTO: %s', $type, $dto->getSku()));
-                $this->logger->logError(sprintf('Fehler beim Senden der Nachricht für %s DTO: %s', $type, $dto->getSku()));
+        foreach ($products as $product) {
+            if (!$this->transport->dispatch($product)) {
+                $io->error(sprintf('Fehler beim Senden der Nachricht für Produkt: %s', $product->abstractSku));
+                $this->logger->logError(sprintf('Fehler beim Senden der Nachricht für Produkt: %s', $product->abstractSku));
                 $allSent = false;
             }
             $progressBar->advance();
@@ -137,37 +113,27 @@ class ImportWizard extends Command
 
         $progressBar->finish();
         $io->newLine(2);
-        return $allSent;
+
+        if ($allSent) {
+            $io->success('Alle Produkte erfolgreich an RabbitMQ gesendet.');
+            $this->logger->logSuccess('Alle Produkte erfolgreich an RabbitMQ gesendet.');
+        } else {
+            $io->warning('Einige Produkte konnten nicht gesendet werden.');
+            $this->logger->logError('Einige Produkte konnten nicht gesendet werden.');
+        }
     }
 
-    private function displayDetailedStatistics(SymfonyStyle $io): void
+    private function displayDetailedStatistics(SymfonyStyle $io, int $productsCount, float $executionTime): void
     {
-        $stats = $this->logger->getStatistics();
-
         $io->section('📊 Detaillierte Statistiken');
 
         $io->table(
             ['Metrik', 'Wert'],
             [
-                ['Verarbeitetes Verzeichnis', $stats['directory']],
-                ['Abstract Products', $stats['abstract_products']],
-                ['Concrete Products', $stats['concrete_products']],
-                ['Ausführungszeit', sprintf('%.2f Sekunden', $stats['execution_time'])],
-                ['Warnungen', $stats['warnings']],
-                ['Fehler', $stats['errors']],
+                ['Verarbeitete Produkte', $productsCount],
+                ['Ausführungszeit', sprintf('%.2f Sekunden', $executionTime)],
+                ['Durchschnittliche Verarbeitungsgeschwindigkeit', sprintf('%.2f Produkte/Sekunde', $productsCount / $executionTime)],
             ]
         );
-
-        $totalProducts = $stats['abstract_products'] + $stats['concrete_products'];
-        $productsPerSecond = $totalProducts / $stats['execution_time'];
-
-        $io->text([
-            sprintf('Durchschnittliche Verarbeitungsgeschwindigkeit: %.2f Produkte/Sekunde', $productsPerSecond),
-            sprintf('Fehlerrate: %.2f%%', ($stats['errors'] / $totalProducts) * 100),
-        ]);
-
-        if ($stats['warnings'] > 0 || $stats['errors'] > 0) {
-            $io->warning('Es gab Warnungen oder Fehler während des Imports. Bitte überprüfen Sie die Logdateien für weitere Details.');
-        }
     }
 }

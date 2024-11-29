@@ -5,9 +5,10 @@ namespace App\Application\MOM;
 
 use App\Domain\DTO\AbstractProductDTO;
 use App\Domain\DTO\ConcreteProductDTO;
+use App\Domain\DTO\ShopifyProduct;
 
 interface TransportInterface
 {
-    public function dispatch(AbstractProductDTO|ConcreteProductDTO $DTO): bool;
+    public function dispatch(ShopifyProduct $DTO): bool;
 
 }

@@ -3,38 +3,14 @@ declare(strict_types=1);
 
 namespace App\Application\Product\Import;
 
-use App\Application\Product\Import\Abstract\AbstractProductImporter;
-use App\Application\Product\Import\Concrete\ConcreteProductImporter;
-use App\Application\Product\Import\Concrete\ProductImageImporter;
-use App\Application\Product\Import\Concrete\ProductPriceImporter;
-use App\Application\Product\Import\Concrete\ProductStockImporter;
-use App\Domain\DTO\ConcreteProductDTO;
-use App\Domain\DTO\ProductImageDTO;
-use App\Domain\DTO\ProductPriceDTO;
-use App\Domain\DTO\ProductStockDTO;
 use Symfony\Component\Finder\Finder;
 
 class ImportProcessor implements ImportInterface
 {
-    private AbstractProductImporter $abstractProductImporter;
-    private ConcreteProductImporter $concreteProductImporter;
-    private ProductPriceImporter $priceImporter;
-    private ProductStockImporter $stockImporter;
-    private ProductImageImporter $imageImporter;
-
     public function __construct(
-        AbstractProductImporter $abstractProductImporter,
-        ConcreteProductImporter $concreteProductImporter,
-        ProductPriceImporter    $priceImporter,
-        ProductStockImporter    $stockImporter,
-        ProductImageImporter    $imageImporter,
-    )
-    {
-        $this->abstractProductImporter = $abstractProductImporter;
-        $this->concreteProductImporter = $concreteProductImporter;
-        $this->priceImporter = $priceImporter;
-        $this->stockImporter = $stockImporter;
-        $this->imageImporter = $imageImporter;
+        private ShopifyVariantImporter $variantImporter,
+        private ShopifyProductImporter $productImporter,
+    ) {
     }
 
     public function processImport(string $directoryPath): array
@@ -57,141 +33,21 @@ class ImportProcessor implements ImportInterface
             throw new \RuntimeException('One or more required CSV files are missing.');
         }
 
-        $concreteProducts = $this->concreteProductImporter->import($concreteFilePath);
-        $prices = $this->priceImporter->import($priceFilePath);
-        $stocks = $this->stockImporter->import($stockFilePath);
-        $images = $this->imageImporter->import($imageFilePath);
+        $shopifyVariants = $this->variantImporter->import($stockFilePath, $imageFilePath, $priceFilePath, $concreteFilePath);
+        $shopifyProducts = $this->productImporter->import($abstractFilePath, $priceFilePath, $imageFilePath);
 
-        $abstractProductDTOs = $this->abstractProductImporter->import($abstractFilePath);
-        $abstractProductDTOs = $this->attachImagesToAbstractProducts($abstractProductDTOs, $images);
-        $abstractProductDTOs = $this->attachPricesToAbstractProducts($abstractProductDTOs, $prices);
-
-        $concreteProductDTOs = $this->createConcreteProductDTOs($concreteProducts, $prices, $stocks, $images);
-
-        return [
-            'abstract_products' => $abstractProductDTOs,
-            'concrete_products' => $concreteProductDTOs
-        ];
-    }
-
-    private function attachPricesToAbstractProducts(array $abstractProductDTOs, array $priceDTOs): array
-    {
-        $abstractProductMap = [];
-        foreach ($abstractProductDTOs as $abstractProductDTO) {
-            $abstractProductMap[$abstractProductDTO->getAbstractSku()] = $abstractProductDTO;
-        }
-
-        foreach ($priceDTOs as $priceDTO) {
-            $abstractSku = $priceDTO->getSku();
-            if (isset($abstractProductMap[$abstractSku])) {
-                $abstractProductMap[$abstractSku]->price[] = [
-                    'priceGross' => $priceDTO->getPriceGross(),
-                    'currency' => $priceDTO->getCurrency(),
-                    'priceType' => $priceDTO->getPriceType()
-                ];
+        $shopifyProductList = [];
+        foreach ($shopifyProducts as $shopifyProduct) {
+            $variants = [];
+            foreach ($shopifyVariants as $shopifyVariant) {
+                if ($shopifyVariant->abstractSku === $shopifyProduct->abstractSku) {
+                    $variants[] = $shopifyVariant;
+                }
             }
+            $shopifyProduct->variants = $variants;
+            $shopifyProductList[] = $shopifyProduct;
         }
 
-        return array_values($abstractProductMap);
-    }
-
-
-    private function attachImagesToAbstractProducts(array $abstractProductDTOs, array $imageDTOs): array
-    {
-        $abstractProductMap = [];
-
-        foreach ($abstractProductDTOs as $abstractProductDTO) {
-            $abstractProductMap[$abstractProductDTO->getAbstractSku()] = $abstractProductDTO;
-        }
-
-        foreach ($imageDTOs as $imageDTO) {
-            $abstractSku = $imageDTO->getAbstractSku();
-            if (isset($abstractProductMap[$abstractSku])) {
-                $abstractProductMap[$abstractSku]->media[] = [
-                    'imageSetName' => $imageDTO->getImageSetName(),
-                    'externalUrlLarge' => $imageDTO->getExternalUrlLarge(),
-                    'externalUrlSmall' => $imageDTO->getExternalUrlSmall(),
-                    'locale' => $imageDTO->getLocale(),
-                    'abstractSku' => $imageDTO->getAbstractSku(),
-                    'concreteSku' => $imageDTO->getConcreteSku(),
-                    'sortOrder' => $imageDTO->getSortOrder(),
-                    'productImageKey' => $imageDTO->getProductImageKey(),
-                ];
-            }
-        }
-
-        return array_values($abstractProductMap);
-    }
-
-    private function createConcreteProductDTOs(array $concreteProducts, array $prices, array $stocks, array $images): array
-    {
-        /** @var ConcreteProductDTO[] $concreteProductDTOs */
-        $concreteProductDTOs = [];
-
-        foreach ($concreteProducts as $concreteProduct) {
-            $sku = $concreteProduct->getConcreteSku();
-
-            $productPrice = $this->findProductPrice($sku, $prices);
-            $productStock = $this->findProductStock($sku, $stocks);
-            $productImage = $this->findProductImage($sku, $images);
-
-            $concreteProductDTO = new ConcreteProductDTO(
-                $concreteProduct->getAbstractSku(),
-                $concreteProduct->getConcreteSku(),
-                $concreteProduct->getNameEn(),
-                $concreteProduct->getNameDe(),
-                $concreteProduct->getDescriptionEn(),
-                $concreteProduct->getDescriptionDe(),
-                $productStock?->getQuantity(),
-                $productStock?->getLocation(),
-                $productStock?->isNeverOutOfStock(),
-                $productPrice?->getPriceGross(),
-                $productPrice?->getCurrency(),
-                $productImage?->getExternalUrlLarge(),
-                (bool)$concreteProduct->isSearchableEn(),
-                (bool)$concreteProduct->isSearchableDe()
-            );
-
-            $concreteProductDTOs[] = $concreteProductDTO;
-        }
-
-        return $concreteProductDTOs;
-    }
-
-    private function findProductPrice(string $sku, array $prices): ?ProductPriceDTO
-    {
-        foreach ($prices as $price) {
-            if ($price->getSku() === $sku) {
-                return $price;
-            }
-        }
-        $abstractSku = explode('_', $sku)[0];
-
-        foreach ($prices as $price) {
-            if ($price->getSku() === $abstractSku) {
-                return $price;
-            }
-        }
-        return null;
-    }
-
-    private function findProductStock(string $sku, array $stocks): ?ProductStockDTO
-    {
-        foreach ($stocks as $stock) {
-            if ($stock->getSku() === $sku) {
-                return $stock;
-            }
-        }
-        return null;
-    }
-
-    private function findProductImage(string $sku, array $images): ?ProductImageDTO
-    {
-        foreach ($images as $image) {
-            if ($image->getConcreteSku() === $sku) {
-                return $image;
-            }
-        }
-        return null;
+        return $shopifyProductList;
     }
 }

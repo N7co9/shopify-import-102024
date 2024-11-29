@@ -70,7 +70,6 @@ class Mutation
             }
         GRAPHQL;
     }
-
     public function getProductVariantsBulkUpdateMutation(): string
     {
         return <<<'GRAPHQL'

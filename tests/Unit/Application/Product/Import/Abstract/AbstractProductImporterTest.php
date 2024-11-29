@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Application\Product\Import\Abstract;
 
 
-use App\Application\Product\Import\Abstract\AbstractProductImporter;
+use App\Application\Product\Import\AbstractProductImporter;
 use App\Domain\DTO\AbstractProductDTO;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;

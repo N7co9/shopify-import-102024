@@ -23,10 +23,8 @@ class Messenger implements MessengerInterface
 
     public function dispatch(ProductMessage $message): bool
     {
-        $routingKey = $this->getRoutingKey($message);
-
         try {
-            $this->bus->dispatch($message, [new AmqpStamp($routingKey)]);
+            $this->bus->dispatch($message, [new AmqpStamp('shopify_product')]);
         } catch (ExceptionInterface $e) {
             $this->logger->logException($e);
             return false;
@@ -35,8 +33,4 @@ class Messenger implements MessengerInterface
         return true;
     }
 
-    private function getRoutingKey(ProductMessage $message): string
-    {
-        return $message->getContent() instanceof AbstractProductDTO ? 'abstract.product' : 'concrete.product';
-    }
 }

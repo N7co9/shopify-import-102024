@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Application\Product\Import;
 
-use App\Application\Product\Import\Abstract\AbstractProductImporter;
+use App\Application\Product\Import\AbstractProductImporter;
 use App\Application\Product\Import\Concrete\ConcreteProductImporter;
 use App\Application\Product\Import\Concrete\ProductImageImporter;
 use App\Application\Product\Import\Concrete\ProductLabelImporter;

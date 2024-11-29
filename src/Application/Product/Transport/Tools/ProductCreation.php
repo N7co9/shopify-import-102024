@@ -3,163 +3,187 @@ declare(strict_types=1);
 
 namespace App\Application\Product\Transport\Tools;
 
-use App\Domain\DTO\ShopifyProductDTO;
+
+use App\Domain\DTO\ShopifyProduct;
 
 class ProductCreation
 {
-    public function __construct(
-        private StructureAndFormat $structureAndFormat
-    )
+    public function __construct()
     {
     }
 
-    public function formatProductDataWithoutOptions(ShopifyProductDTO $dto): array
+    public function prepareInputData(ShopifyProduct $product): array
     {
         return [
-            'title' => $dto->getTitle(),
-            'descriptionHtml' => $dto->getDescriptionHtml(),
-            'productType' => $dto->getProductType(),
-            'status' => 'ACTIVE',
-            'metafields' => $this->structureAndFormat->formatMetafields($dto->getMetafields())
+            'descriptionHtml' => $product->bodyHtml->de_DE,
+            'files' => [
+                'alt' => $product->title->de_DE,
+                'contentType' => 'IMAGE',
+                'originalSource' => $product->imageUrl
+            ],
+            'giftCard' => $product->isGiftCard,
+            'handle' => $product->handle->de_DE,
+            'metafields' => $this->generateMetafields($product),
+            'productOptions' => $this->generateProductOptions($product),
+            'productType' => $product->productType,
+            'seo' => [
+                'description' => $product->bodyHtml->de_DE,
+                'title' => $product->title->de_DE
+            ],
+            'status' => $product->status,
+            'tags' => $product->tags->de_DE,
+            'title' => $product->title->de_DE,
+            'variants' => $this->formatVariantsForShopifyInput($product),
+            'vendor' => $product->vendor
         ];
     }
 
-    public function formatProductData(ShopifyProductDTO $dto): array
+    public function generateMetafields(ShopifyProduct $product): array
     {
-        $productData = [
-            'title' => $dto->getTitle(),
-            'descriptionHtml' => $dto->getDescriptionHtml(),
-            'productOptions' => $this->generateValidProductOptions($dto->getProductOptions()),
-            'productType' => $dto->getProductType(),
-            'status' => 'ACTIVE',
-        ];
+        $metafields = [];
 
-        if (!empty($dto->getMetafields())) {
-            $productData['metafields'] = $this->structureAndFormat->formatMetafields($dto->getMetafields());
+        foreach ($product->attributes as $key => $value) {
+            $metafields[] = [
+                'key' => $key,
+                'namespace' => 'product.attributes',
+                'type' => 'single_line_text_field',
+                'value' => is_array($value) ? json_encode($value, JSON_THROW_ON_ERROR) : $value,
+            ];
         }
 
-        if (!empty($dto->getProductOptions())) {
-            $productData['variants'] = $this->generateVariants(
-                $dto->getProductOptions(),
-                $dto->getPrice(),
-                $this->extractSkusFromProductOptions($dto->getProductOptions())
-            );
+        if ($product->tags->de_DE) {
+            $metafields[] = [
+                'key' => 'tags',
+                'namespace' => 'product.info',
+                'type' => 'list.single_line_text_field',
+                'value' => json_encode(explode(',', $product->tags->de_DE), JSON_THROW_ON_ERROR)
+            ];
         }
 
-        if (!empty($dto->getMedia())) {
-            $productData['files'] = $this->structureAndFormat->formatMedia($dto->getMedia());
+        if ($product->isBundle) {
+            $metafields[] = [
+                'key' => 'is_bundle',
+                'namespace' => 'product.info',
+                'type' => 'boolean',
+                'value' => $product->isBundle ? 'true' : 'false',
+            ];
         }
 
-        return $productData;
+        return $metafields;
     }
 
-    private function generateValidProductOptions(array $productOptions): array
-    {
-        $validProductOptions = [];
-        foreach ($productOptions as $option) {
-            if (isset($option['name'], $option['values']) && is_array($option['values'])) {
-                $formattedValues = array_map(function ($value) {
-                    if (is_string($value)) {
-                        return ['name' => $value];
-                    }
-                    throw new \UnexpectedValueException("Invalid value format in product options.");
-                }, array_values($option['values']));
 
-                $validProductOptions[] = [
-                    'name' => $option['name'],
-                    'position' => $option['position'] ?? 1,
-                    'values' => $formattedValues,
+    public function generateProductOptions(ShopifyProduct $product): array
+    {
+        $position = 1;
+        $optionSetInputs = [];
+        $optionValuesMap = [];
+
+        foreach ($product->variants as $variant) {
+            if (empty($variant->option)) {
+                $optionSetInputs[] = [
+                    'name' => $variant->title,
+                    'position' => $position++,
+                    'values' => [
+                        ['name' => $variant->title]
+                    ],
+                    'linkedMetafield' => [
+                        'key' => strtolower(str_replace(' ', '_', $variant->title)),
+                        'namespace' => 'product.options',
+                        'values' => [$variant->title]
+                    ],
                 ];
             } else {
-                throw new \UnexpectedValueException("Invalid product option structure.");
+                foreach ($variant->option as $key => $value) {
+                    if (!isset($optionValuesMap[$key])) {
+                        $optionValuesMap[$key] = [];
+                    }
+                    if (!in_array($value, $optionValuesMap[$key], true)) {
+                        $optionValuesMap[$key][] = $value;
+                    }
+                }
             }
         }
-        return $validProductOptions;
+
+        foreach ($optionValuesMap as $key => $values) {
+            $optionSetInputs[] = [
+                'name' => ucfirst(str_replace('_', ' ', $key)),
+                'position' => $position++,
+                'values' => array_map(fn($value) => ['name' => $value], $values),
+                'linkedMetafield' => [
+                    'key' => strtolower(str_replace(' ', '_', $key)),
+                    'namespace' => 'product.options',
+                    'values' => $values
+                ],
+            ];
+        }
+
+        foreach ($optionSetInputs as $index => $option) {
+            if (isset($option['linkedMetafield'], $option['values'])) {
+                unset($optionSetInputs[$index]['linkedMetafield']);
+            }
+        }
+
+        return $optionSetInputs;
     }
 
-
-    private function generateVariants(array $productOptions, array $prices = [], array $skus = []): array
+    private function formatVariantsForShopifyInput(ShopifyProduct $product): array
     {
-        $options = [];
+        $formattedVariants = [];
+        $productOptions = $this->generateProductOptions($product);
 
-        foreach ($productOptions as $option) {
-            if (!isset($option['name'], $option['values']) || !is_array($option['values'])) {
-                throw new \UnexpectedValueException("Invalid product option structure. Each option must have a 'name' and 'values' as an array.");
-            }
+        foreach ($product->variants as $variant) {
+            $optionValues = $this->mapVariantOptionValues($variant, $productOptions);
 
-            $values = array_map(function ($value) use ($option) {
-                if (is_array($value) && isset($value['name'])) {
-                    return ['optionName' => $option['name'], 'name' => $value['name']];
-                }
-                if (is_string($value)) {
-                    return ['optionName' => $option['name'], 'name' => $value];
-                }
-                throw new \UnexpectedValueException("Unexpected value format in product option values.");
-            }, $option['values']);
-
-            $options[] = $values;
-        }
-
-        $combinations = $this->combineOptions($options);
-
-        $variants = [];
-        foreach ($combinations as $index => $combination) {
-            $variant = [
-                'optionValues' => $combination,
-                'sku' => isset($skus[$index]) ? (string)$skus[$index] : null,
+            $formattedVariant = [
+                'optionValues' => $optionValues,
+                'price' => $variant->price ?? '0.00',
+                'inventoryPolicy' => strtoupper($variant->inventoryPolicy ?? 'DENY'),
+                'taxable' => $variant->taxable ?? true,
             ];
 
-            $filteredPrices = array_filter($prices, fn($price) => $price['currency'] === 'EUR');
-            $defaultPrice = null;
-            $compareAtPrice = null;
-
-            foreach ($filteredPrices as $price) {
-                if ($price['priceType'] === 'DEFAULT') {
-                    $defaultPrice = $price['priceGross'];
-                } elseif ($price['priceType'] === 'ORIGINAL') {
-                    $compareAtPrice = $price['priceGross'];
-                }
+            if (!empty($variant->concreteSku)) {
+                $formattedVariant['sku'] = $variant->concreteSku;
             }
 
-            if ($defaultPrice !== null) {
-                $variant['price'] = $defaultPrice;
-            }
-            if ($compareAtPrice !== null) {
-                $variant['compareAtPrice'] = $compareAtPrice;
-            }
-
-            $variants[] = $variant;
+            $formattedVariants[] = $formattedVariant;
         }
 
-        return $variants;
+        return $formattedVariants;
     }
 
-
-    private function extractSkusFromProductOptions(array $productOptions): array
+    private function mapVariantOptionValues($variant, array $productOptions): array
     {
-        $skus = [];
-        foreach ($productOptions as $option) {
-            if ($option['name'] === 'color' && isset($option['values'])) {
-                foreach ($option['values'] as $abstractSku => $color) {
-                    $skus[] = $abstractSku;
+        $optionValues = [];
+
+        foreach ($productOptions as $productOption) {
+            if (isset($productOption['values'])) {
+                $optionName = $productOption['name'];
+                $linkedValues = $productOption['values'];
+
+                if (empty($variant->option)) {
+                    foreach ($linkedValues as $value) {
+                        $optionValues[] = [
+                            'optionName' => $optionName,
+                            'name' => $value['name'],
+                        ];
+                    }
+                } else {
+                    foreach ($linkedValues as $value) {
+                        if ($variant->option[strtolower(str_replace(' ', '_', $optionName))] === $value['name']) {
+                            $optionValues[] = [
+                                'optionName' => $optionName,
+                                'name' => $value['name'],
+                            ];
+                            break;
+                        }
+                    }
                 }
             }
         }
-        return $skus;
+
+        return $optionValues;
     }
 
-    private function combineOptions(array $arrays): array
-    {
-        $result = [[]];
-        foreach ($arrays as $propertyValues) {
-            $temp = [];
-            foreach ($result as $resultItem) {
-                foreach ($propertyValues as $propertyValue) {
-                    $temp[] = array_merge($resultItem, [$propertyValue]);
-                }
-            }
-            $result = $temp;
-        }
-        return $result;
-    }
+
 }

@@ -8,10 +8,8 @@ framework:
             name: 'product_exchange'
             type: topic
           queues:
-            abstract_product_queue:
-              binding_keys: [ 'abstract.product' ]
-            concrete_product_queue:
-              binding_keys: [ 'concrete.product' ]
+            shopify_product_queue:
+              binding_keys: [ 'shopify_product' ]
 
     routing:
       'App\Domain\Message\ProductMessage': amqp
