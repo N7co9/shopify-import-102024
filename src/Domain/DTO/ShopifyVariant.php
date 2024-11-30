@@ -6,7 +6,7 @@ namespace App\Domain\DTO;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Serializer\Annotation\SerializedName;
 
-readonly class ShopifyVariant
+class ShopifyVariant
 {
     public function __construct(
         #[Groups(['shopify'])]
@@ -26,7 +26,7 @@ readonly class ShopifyVariant
         public string  $inventoryQuantity,
 
         #[Groups(['shopify'])]
-        public string  $inventoryLocation,
+        public array  $inventoryLocation,
 
         #[Groups(['shopify'])]
         #[SerializedName('is_never_out_of_stock')]

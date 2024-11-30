@@ -139,6 +139,11 @@ class ProductCreation
                 'optionValues' => $optionValues,
                 'price' => $variant->price ?? '0.00',
                 'inventoryPolicy' => strtoupper($variant->inventoryPolicy ?? 'DENY'),
+                'inventoryQuantities' => [
+                    'locationId' => $variant->inventoryLocation['id'],
+                    'name' => 'available',
+                    'quantity' => (int)$variant->inventoryQuantity
+                ],
                 'taxable' => $variant->taxable ?? true,
             ];
 
@@ -184,6 +189,4 @@ class ProductCreation
 
         return $optionValues;
     }
-
-
 }

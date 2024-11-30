@@ -7,12 +7,17 @@ use Exception;
 
 interface LoggerInterface
 {
-    public function logException(Exception $exception): void;
+    public function logException(Exception $exception, string $logType): void;
 
-    public function logStatistics(array $stats): void;
+    public function logStatistics(array $stats, string $logType): void;
 
-    public function logSuccess(string $message): void;
+    public function logSuccess(string $message, string $logType): void;
 
-    public function logWarning(string $message): void;
-    public function logError(string $message): void;
+    public function logWarning(string $message, string $logType): void;
+
+    public function logError(string $message, string $logType): void;
+
+    public function getStatistics(string $logType = null): array;
+
+    public function writeStatistics(string $logType = null): void;
 }

@@ -20,7 +20,6 @@ readonly class ProductTransportService implements TransportInterface
     public function dispatch(ShopifyProduct $DTO): bool
     {
         $message = $this->configureMessage($DTO);
-
         return $this->messenger->dispatch($message);
     }
 

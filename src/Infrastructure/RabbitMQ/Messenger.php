@@ -26,7 +26,7 @@ class Messenger implements MessengerInterface
         try {
             $this->bus->dispatch($message, [new AmqpStamp('shopify_product')]);
         } catch (ExceptionInterface $e) {
-            $this->logger->logException($e);
+            $this->logger->logException($e, 'transport');
             return false;
         }
 

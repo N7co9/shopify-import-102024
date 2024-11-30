@@ -62,7 +62,7 @@ class ImportWizard extends Command
             $products = $this->import->processImport($directory);
             $progressBar->finish();
             $io->newLine(2);
-            $this->logger->logSuccess(sprintf('Import erfolgreich für Verzeichnis: %s', $directory));
+            $this->logger->logSuccess(sprintf('Import erfolgreich für Verzeichnis: %s', $directory), 'import');
         } catch (\Exception $e) {
             $progressBar->finish();
             $io->newLine(2);
@@ -78,7 +78,7 @@ class ImportWizard extends Command
             'directory' => $directory,
             'execution_time' => $duration,
             'products_count' => count($products),
-        ]);
+        ], 'import');
 
         $this->displayDetailedStatistics($io, count($products), $duration);
 
@@ -105,9 +105,10 @@ class ImportWizard extends Command
         foreach ($products as $product) {
             if (!$this->transport->dispatch($product)) {
                 $io->error(sprintf('Fehler beim Senden der Nachricht für Produkt: %s', $product->abstractSku));
-                $this->logger->logError(sprintf('Fehler beim Senden der Nachricht für Produkt: %s', $product->abstractSku));
+                $this->logger->logError(sprintf('Fehler beim Senden der Nachricht für Produkt: %s', $product->abstractSku), 'transport');
                 $allSent = false;
             }
+            $this->logger->logSuccess(sprintf('%s: Erfolgreich an Message Broker übergeben', $product->abstractSku), 'transport');
             $progressBar->advance();
         }
 
@@ -116,10 +117,10 @@ class ImportWizard extends Command
 
         if ($allSent) {
             $io->success('Alle Produkte erfolgreich an RabbitMQ gesendet.');
-            $this->logger->logSuccess('Alle Produkte erfolgreich an RabbitMQ gesendet.');
+            $this->logger->logSuccess('Alle Produkte erfolgreich an RabbitMQ gesendet.', 'transport');
         } else {
             $io->warning('Einige Produkte konnten nicht gesendet werden.');
-            $this->logger->logError('Einige Produkte konnten nicht gesendet werden.');
+            $this->logger->logError('Einige Produkte konnten nicht gesendet werden.', 'transport');
         }
     }
 

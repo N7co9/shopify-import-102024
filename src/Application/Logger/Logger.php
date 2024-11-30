@@ -4,30 +4,58 @@ declare(strict_types=1);
 namespace App\Application\Logger;
 
 use Exception;
+use JsonException;
 
 class Logger implements LoggerInterface
 {
     private string $logDirectory;
     private array $statistics = [];
-    private int $warningCount = 0;
-    private int $errorCount = 0;
+    private array $logTypeCounts = [
+        'import' => ['success' => 0, 'warning' => 0, 'error' => 0],
+        'transport' => ['success' => 0, 'warning' => 0, 'error' => 0],
+        'api' => ['success' => 0, 'warning' => 0, 'error' => 0]
+    ];
 
     public function __construct(string $logDirectory = __DIR__ . '/../../../logs')
     {
         $this->logDirectory = $logDirectory;
-        $this->createLogDirectory();
+        $this->createLogDirectories();
     }
 
-    private function createLogDirectory(): void
+    private function createLogDirectories(): void
     {
-        if (!is_dir($this->logDirectory) && !mkdir($concurrentDirectory = $this->logDirectory, 0777, true) && !is_dir($concurrentDirectory)) {
-            throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
+        $logTypes = ['import', 'transport', 'api'];
+        $logLevels = ['success', 'exception', 'statistic'];
+
+        if (!is_dir($this->logDirectory) && !mkdir($this->logDirectory, 0777, true) && !is_dir($this->logDirectory)) {
+            throw new \RuntimeException(sprintf('Directory "%s" was not created', $this->logDirectory));
+        }
+
+        foreach ($logTypes as $type) {
+            $typeDir = $this->logDirectory . '/' . $type;
+
+            foreach ($logLevels as $level) {
+                $levelDir = $typeDir . '/' . $level;
+
+                if (!is_dir($levelDir) && !mkdir($levelDir, 0777, true) && !is_dir($levelDir)) {
+                    throw new \RuntimeException(sprintf('Directory "%s" was not created', $levelDir));
+                }
+            }
         }
     }
 
-    public function logException(Exception $exception): void
+    public function logException(Exception $exception, string $logType = 'default'): void
     {
-        $filename = sprintf('%s/exceptions_%s.log', $this->logDirectory, date('Ymd'));
+        $this->validateLogType($logType);
+
+        $filename = sprintf(
+            '%s/%s/exception/%s_exceptions_%s.log',
+            $this->logDirectory,
+            $logType,
+            $logType,
+            date('Ymd')
+        );
+
         $message = sprintf(
             "[%s] %s: %s in %s on line %d\nStack trace:\n%s\n\n",
             date('Y-m-d H:i:s'),
@@ -37,51 +65,110 @@ class Logger implements LoggerInterface
             $exception->getLine(),
             $exception->getTraceAsString()
         );
+
         file_put_contents($filename, $message, FILE_APPEND);
-        $this->errorCount++;
+        $this->logTypeCounts[$logType]['error']++;
     }
 
-    public function logSuccess(string $message): void
+    public function logSuccess(string $message, string $logType): void
     {
-        $this->log('SUCCESS', $message);
+        $this->log('SUCCESS', $message, $logType);
+        $this->logTypeCounts[$logType]['success']++;
     }
 
-    public function logWarning(string $message): void
+    public function logWarning(string $message, string $logType): void
     {
-        $this->log('WARNING', $message);
-        $this->warningCount++;
+        $this->log('WARNING', $message, $logType);
+        $this->logTypeCounts[$logType]['warning']++;
     }
 
-    public function logError(string $message): void
+    public function logError(string $message, string $logType): void
     {
-        $this->log('ERROR', $message);
-        $this->errorCount++;
+        $this->log('ERROR', $message, $logType);
+        $this->logTypeCounts[$logType]['error']++;
     }
 
-    private function log(string $level, string $message): void
+    private function log(string $level, string $message, string $logType): void
     {
-        $filename = sprintf('%s/app_%s.log', $this->logDirectory, date('Ymd'));
+        $this->validateLogType($logType);
+
+        $filename = sprintf(
+            '%s/%s/success/%s_%s_%s.log',
+            $this->logDirectory,
+            $logType,
+            $logType,
+            strtolower($level),
+            date('Ymd')
+        );
+
         $logMessage = sprintf("[%s] [%s] %s\n", date('Y-m-d H:i:s'), $level, $message);
         file_put_contents($filename, $logMessage, FILE_APPEND);
     }
 
-    public function logStatistics(array $stats): void
+    public function logStatistics(array $stats, string $logType): void
     {
-        $this->statistics = array_merge($this->statistics, $stats);
+        $this->validateLogType($logType);
+        $this->statistics[$logType] = array_merge(
+            $this->statistics[$logType] ?? [],
+            $stats
+        );
     }
 
-    public function getStatistics(): array
+    public function getStatistics(string $logType = null): array
     {
-        return array_merge($this->statistics, [
-            'warnings' => $this->warningCount,
-            'errors' => $this->errorCount,
-        ]);
+        if ($logType) {
+            $this->validateLogType($logType);
+            return array_merge(
+                $this->statistics[$logType] ?? [],
+                ['counts' => $this->logTypeCounts[$logType]]
+            );
+        }
+
+        $allStats = [];
+        foreach (array_keys($this->logTypeCounts) as $type) {
+            $allStats[$type] = $this->getStatistics($type);
+        }
+
+        return $allStats;
     }
 
-    public function writeStatistics(): void
+    public function writeStatistics(string $logType = null): void
     {
-        $filename = sprintf('%s/statistics_%s.log', $this->logDirectory, date('Ymd'));
-        $formattedStats = sprintf("[%s] Stats:\n%s\n\n", date('Y-m-d H:i:s'), json_encode($this->getStatistics(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
-        file_put_contents($filename, $formattedStats, FILE_APPEND);
+        $statsToWrite = $this->getStatistics($logType);
+
+        if ($logType === null) {
+            $filename = sprintf(
+                '%s/statistics_%s.log',
+                $this->logDirectory,
+                date('Ymd')
+            );
+        } else {
+            $filename = sprintf(
+                '%s/%s/statistic/%s_statistics_%s.log',
+                $this->logDirectory,
+                $logType,
+                $logType,
+                date('Ymd')
+            );
+        }
+
+        try {
+            $formattedStats = sprintf(
+                "[%s] Stats:\n%s\n\n",
+                date('Y-m-d H:i:s'),
+                json_encode($statsToWrite, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT)
+            );
+            file_put_contents($filename, $formattedStats, FILE_APPEND);
+        } catch (JsonException $e) {
+            $this->logException($e);
+        }
+    }
+
+    private function validateLogType(string $logType): void
+    {
+        $validTypes = ['import', 'transport', 'api'];
+        if (!in_array($logType, $validTypes)) {
+            throw new \InvalidArgumentException("Invalid log type: $logType");
+        }
     }
 }
