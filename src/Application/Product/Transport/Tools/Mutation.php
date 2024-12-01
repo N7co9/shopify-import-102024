@@ -34,42 +34,88 @@ class Mutation
     public function getProductSetMutation(): string
     {
         return <<<'GRAPHQL'
-            mutation createProductWithMedia($productSet: ProductSetInput!, $synchronous: Boolean!) {
-                productSet(synchronous: $synchronous, input: $productSet) {
-                    product {
-                        id
-                        media(first: 5) {
-                            nodes {
-                                id
-                                alt
-                                mediaContentType
-                                status
-                            }
+        mutation createProductWithMedia($productSet: ProductSetInput!, $synchronous: Boolean!) {
+            productSet(synchronous: $synchronous, input: $productSet) {
+                product {
+                    id
+                    media(first: 5) {
+                        nodes {
+                            id
+                            alt
+                            mediaContentType
+                            status
                         }
-                        variants(first: 5) {
-                            nodes {                      
-                                title
-                                price
-                                compareAtPrice
-                                media(first: 5) {
-                                    nodes {
-                                        id
-                                        alt
-                                        mediaContentType
-                                        status
+                    }
+                    variants(first: 5) {
+                        nodes {                      
+                            title
+                            price
+                            compareAtPrice
+                            inventoryItem {
+                                id
+                                sku
+                                tracked
+                                inventoryLevels(first: 5) {
+                                    edges {
+                                        node {
+                                            location {
+                                                name
+                                            }
+                                        }
                                     }
+                                }
+                            }
+                            media(first: 5) {
+                                nodes {
+                                    id
+                                    alt
+                                    mediaContentType
+                                    status
                                 }
                             }
                         }
                     }
-                    userErrors {
-                        field
-                        message
-                    }
+                }
+                userErrors {
+                    field
+                    message
                 }
             }
-        GRAPHQL;
+        }
+    GRAPHQL;
     }
+
+    public function getInventoryItemUpdateMutation(): string
+    {
+        return <<<'GRAPHQL'
+            mutation inventoryItemUpdate($id: ID!, $input: InventoryItemInput!) {
+                inventoryItemUpdate(id: $id, input: $input) {
+                inventoryItem {
+                id
+                unitCost {
+                    amount
+                }
+                tracked
+                countryCodeOfOrigin
+                provinceCodeOfOrigin
+                harmonizedSystemCode
+                countryHarmonizedSystemCodes(first: 1) {
+                edges {
+                    node {
+                      harmonizedSystemCode
+                      countryCode
+                    }
+                  }
+                }
+              }
+              userErrors {
+                    message
+              }
+            }
+          }
+         GRAPHQL;
+    }
+
     public function getProductVariantsBulkUpdateMutation(): string
     {
         return <<<'GRAPHQL'

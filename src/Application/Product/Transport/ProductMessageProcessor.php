@@ -31,6 +31,25 @@ class ProductMessageProcessor implements ProductProcessorInterface
         $this->sendProductToShopify($input, $mutation);
     }
 
+    private function sendProductToShopify(array $input, string $mutation): void
+    {
+        try {
+            $variables = $this->prepareVariables($input);
+            $response = $this->graphQLInterface->executeQuery($mutation, $variables);
+
+            if ($this->hasGraphQLErrors($response)) {
+                $this->handleGraphQLError($response);
+            }
+
+            $this->sendTrackInventoryRequest($response);
+
+            $this->logSuccess($response);
+
+        } catch (\Exception $e) {
+            $this->logError($e);
+        }
+    }
+
     private function attachLocationIdByName(ShopifyProduct $product): void
     {
         foreach ($product->variants as $variant) {
@@ -64,21 +83,25 @@ class ProductMessageProcessor implements ProductProcessorInterface
         }
     }
 
-    private function sendProductToShopify(array $input, string $mutation): void
+    private function sendTrackInventoryRequest(array $productSetResponse): void
     {
-        try {
-            $variables = $this->prepareVariables($input);
-            $response = $this->graphQLInterface->executeQuery($mutation, $variables);
-
-            if ($this->hasGraphQLErrors($response)) {
-                $this->handleGraphQLError($response);
+        foreach ($productSetResponse['productSet']['product']['variants']['nodes'] as $variant) {
+            $inventoryItemId = $variant['inventoryItem']['id'];
+            $variables = [
+                'id' => $inventoryItemId,
+                'input' => [
+                    'tracked' => true,
+                ],
+            ];
+            $query = $this->mutation->getInventoryItemUpdateMutation();
+            $response = $this->graphQLInterface->executeQuery($query, $variables);
+            if (!empty($response['inventoryItemUpdate']['userErrors'])) {
+                $this->logger->logException(new RuntimeException(sprintf('An Exception occurred while sending a TrackInventoryRequest with InventoryItemId: %s', $inventoryItemId)), 'api');
+                return;
             }
-
-            $this->logSuccess($response);
-
-        } catch (\Throwable $e) {
-            $this->logError($e);
+            $this->logger->logSuccess(sprintf('Inventory Item: %s erfolgreich Tracking aktiviert', $inventoryItemId), 'api');
         }
+
     }
 
     private function prepareVariables(array $input): array
