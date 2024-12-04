@@ -12,13 +12,15 @@ class VariantRecordProcessor
         $variants = [];
 
         foreach ($concreteRecords as $record) {
+            $this->validateRequiredFields($record, ['abstract_sku', 'concrete_sku', 'name.en_US']);
+
+
             $abstractSku = $record['abstract_sku'];
             $concreteSku = $record['concrete_sku'];
 
             $inventoryQuantity = $this->getValue($stockRecords, 'concrete_sku', $concreteSku, 'quantity', 'N/A');
             $inventoryLocation = $this->getValue($stockRecords, 'concrete_sku', $concreteSku, 'name', 'DEFAULT');
-            $isNeverOutOfStock = $this->getValue($stockRecords, 'concrete_sku', $concreteSku, 'is_never_out_of_stock', 0);
-            $parentPrice = $this->getValue($priceRecords, 'abstract_sku', $abstractSku, 'value_gross', '0.00');
+            $isNeverOutOfStock = $this->getValue($stockRecords, 'concrete_sku', $concreteSku, 'is_never_out_of_stock', '0');            $parentPrice = $this->getValue($priceRecords, 'abstract_sku', $abstractSku, 'value_gross', '0.00');
             $parentCompareAtPrice = $this->getFilteredValue($priceRecords, 'abstract_sku', $abstractSku, 'price_type', 'ORIGINAL', 'value_gross', '0.00');
             $price = $this->getValue($priceRecords, 'concrete_sku', $concreteSku, 'value_gross', $parentPrice);
             $imageUrl = $this->getValue($imageRecords, 'concrete_sku', $concreteSku, 'external_url_large', null);
@@ -72,10 +74,21 @@ class VariantRecordProcessor
         return $default;
     }
 
-    private function getFilteredValue(array $records, string $keyField1, string $keyValue1, string $keyField2, string $keyValue2, string $valueField, $default = null)
-    {
+    private function getFilteredValue(
+        array $records,
+        string $keyField1,
+        string $keyValue1,
+        string $keyField2,
+        string $keyValue2,
+        string $valueField,
+        $default = null
+    ) {
         foreach ($records as $record) {
-            if ($record[$keyField1] === $keyValue1 && $record[$keyField2] === $keyValue2) {
+            if (
+                isset($record[$keyField1], $record[$keyField2]) &&
+                $record[$keyField1] === $keyValue1 &&
+                $record[$keyField2] === $keyValue2
+            ) {
                 return $record[$valueField] ?? $default;
             }
         }
@@ -94,5 +107,19 @@ class VariantRecordProcessor
         }
 
         return $options;
+    }
+
+    private function validateRequiredFields(array $record, array $requiredFields): void
+    {
+        $missingFields = [];
+        foreach ($requiredFields as $field) {
+            if (!array_key_exists($field, $record) || $record[$field] === null || $record[$field] === '') {
+                $missingFields[] = $field;
+            }
+        }
+
+        if (!empty($missingFields)) {
+            throw new \InvalidArgumentException('Missing required fields: ' . implode(', ', $missingFields));
+        }
     }
 }

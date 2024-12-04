@@ -44,7 +44,7 @@ class Logger implements LoggerInterface
         }
     }
 
-    public function logException(Exception $exception, string $logType = 'default'): void
+    public function logException(Exception $exception, string $logType): void
     {
         $this->validateLogType($logType);
 
@@ -132,6 +132,9 @@ class Logger implements LoggerInterface
         return $allStats;
     }
 
+    /**
+     * @throws JsonException
+     */
     public function writeStatistics(string $logType = null): void
     {
         $statsToWrite = $this->getStatistics($logType);
@@ -152,16 +155,12 @@ class Logger implements LoggerInterface
             );
         }
 
-        try {
-            $formattedStats = sprintf(
-                "[%s] Stats:\n%s\n\n",
-                date('Y-m-d H:i:s'),
-                json_encode($statsToWrite, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT)
-            );
-            file_put_contents($filename, $formattedStats, FILE_APPEND);
-        } catch (JsonException $e) {
-            $this->logException($e);
-        }
+        $formattedStats = sprintf(
+            "[%s] Stats:\n%s\n\n",
+            date('Y-m-d H:i:s'),
+            json_encode($statsToWrite, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT)
+        );
+        file_put_contents($filename, $formattedStats, FILE_APPEND);
     }
 
     private function validateLogType(string $logType): void

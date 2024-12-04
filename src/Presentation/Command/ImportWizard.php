@@ -20,16 +20,8 @@ use Symfony\Component\Stopwatch\Stopwatch;
 )]
 class ImportWizard extends Command
 {
-    private ImportInterface $import;
-    private TransportInterface $transport;
-    private LoggerInterface $logger;
-
-    public function __construct(ImportInterface $importFacade, TransportInterface $messageDispatcher, LoggerInterface $logger)
+    public function __construct(private ImportInterface $import, private TransportInterface $transport, private LoggerInterface $logger)
     {
-        $this->logger = $logger;
-        $this->import = $importFacade;
-        $this->transport = $messageDispatcher;
-
         parent::__construct();
     }
 
@@ -66,7 +58,7 @@ class ImportWizard extends Command
         } catch (\Exception $e) {
             $progressBar->finish();
             $io->newLine(2);
-            $this->logger->logException($e);
+            $this->logger->logException($e, 'import');
             $io->error(sprintf('Fehler beim Import: %s', $e->getMessage()));
             return Command::FAILURE;
         }
@@ -93,7 +85,7 @@ class ImportWizard extends Command
         return Command::SUCCESS;
     }
 
-    private function sendProducts(array $products, SymfonyStyle $io): void
+    public function sendProducts(array $products, SymfonyStyle $io): void
     {
         $io->section('📤 Sende Produkte an RabbitMQ...');
 
@@ -128,12 +120,16 @@ class ImportWizard extends Command
     {
         $io->section('📊 Detaillierte Statistiken');
 
+        $averageSpeed = $executionTime > 0
+            ? sprintf('%.2f Produkte/Sekunde', $productsCount / $executionTime)
+            : 'N/A (Ausführungszeit ist 0)';
+
         $io->table(
             ['Metrik', 'Wert'],
             [
                 ['Verarbeitete Produkte', $productsCount],
                 ['Ausführungszeit', sprintf('%.2f Sekunden', $executionTime)],
-                ['Durchschnittliche Verarbeitungsgeschwindigkeit', sprintf('%.2f Produkte/Sekunde', $productsCount / $executionTime)],
+                ['Durchschnittliche Verarbeitungsgeschwindigkeit', $averageSpeed],
             ]
         );
     }

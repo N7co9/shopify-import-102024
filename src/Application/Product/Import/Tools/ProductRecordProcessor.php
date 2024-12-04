@@ -13,6 +13,15 @@ class ProductRecordProcessor
         $products = [];
 
         foreach ($abstractProductRecords as $record) {
+
+            $this->validateRequiredFields($record, [
+                'abstract_sku',
+                'name.en_US',
+                'name.de_DE',
+                'description.en_US',
+                'description.de_DE',
+            ]);
+
             $abstractSKU = $record['abstract_sku'];
 
             $price = $this->getValue($priceRecords, 'abstract_sku', $abstractSKU, 'value_gross', '0.00');
@@ -94,5 +103,19 @@ class ProductRecordProcessor
     private function isGiftCard(array $record): bool
     {
         return str_contains($record['name.de_DE'], 'Geschenkgutschein') || str_contains($record['name.en_US'], 'Gift Card');
+    }
+
+    private function validateRequiredFields(array $record, array $requiredFields): void
+    {
+        $missingFields = [];
+        foreach ($requiredFields as $field) {
+            if (!array_key_exists($field, $record) || $record[$field] === null || $record[$field] === '') {
+                $missingFields[] = $field;
+            }
+        }
+
+        if (!empty($missingFields)) {
+            throw new \InvalidArgumentException('Missing required fields: ' . implode(', ', $missingFields));
+        }
     }
 }

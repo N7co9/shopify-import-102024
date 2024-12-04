@@ -72,7 +72,6 @@ class ProductCreation
         return $metafields;
     }
 
-
     public function generateProductOptions(ShopifyProduct $product): array
     {
         $position = 1;
@@ -130,10 +129,18 @@ class ProductCreation
     private function formatVariantsForShopifyInput(ShopifyProduct $product): array
     {
         $formattedVariants = [];
+        $file = [];
         $productOptions = $this->generateProductOptions($product);
 
         foreach ($product->variants as $variant) {
             $optionValues = $this->mapVariantOptionValues($variant, $productOptions);
+
+            if (!empty($variant->imageUrl)) {
+                $file = [
+                    'contentType' => 'IMAGE',
+                    'originalSource' => $variant->imageUrl
+                ];
+            }
 
             $formattedVariant = [
                 'optionValues' => $optionValues,
@@ -145,6 +152,7 @@ class ProductCreation
                     'quantity' => (int)$variant->inventoryQuantity
                 ],
                 'taxable' => $variant->taxable ?? true,
+                'file' => $file
             ];
 
             if (!empty($variant->concreteSku)) {

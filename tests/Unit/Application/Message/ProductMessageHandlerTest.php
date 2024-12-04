@@ -1,30 +1,31 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Tests\Unit\Application\Message;
 
-
 use App\Application\Message\ProductMessageHandler;
-use App\Application\Product\Service\ProductServiceInterface;
-use App\Domain\DTO\AbstractProductDTO;
+use App\Application\Product\Transport\ProductProcessorInterface;
+use App\Domain\DTO\ShopifyProduct;
 use App\Domain\Message\ProductMessage;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class ProductMessageHandlerTest extends TestCase
 {
-    public function testInvokeCallsProductService(): void
+    public function testInvokeCallsProcessProductOnProductProcessor(): void
     {
-        $productDTO = $this->createMock(AbstractProductDTO::class);
-        $productDTO->method('getAbstractSku')->willReturn('TEST_SKU');
+        $shopifyProduct = $this->createMock(ShopifyProduct::class);
+        $productMessage = new ProductMessage($shopifyProduct);
 
-        $productMessage = new ProductMessage($productDTO);
+        /** @var ProductProcessorInterface|MockObject $productProcessorMock */
+        $productProcessorMock = $this->createMock(ProductProcessorInterface::class);
 
-        $productService = $this->createMock(ProductServiceInterface::class);
-        $productService->expects($this->once())
-            ->method('handleProductMessage')
-            ->with($productMessage);
+        $productProcessorMock->expects($this->once())
+            ->method('processProduct')
+            ->with($this->identicalTo($shopifyProduct));
 
-        $handler = new ProductMessageHandler($productService);
+        $handler = new ProductMessageHandler($productProcessorMock);
 
         $handler($productMessage);
     }

@@ -15,88 +15,87 @@ class ShopifyProduct
     public function __construct(
         #[Groups(['shopify'])]
         #[SerializedName('abstract_sku')]
-        public string          $abstractSku,
+        public string           $abstractSku,
 
         #[Groups(['shopify'])]
-        public LocalizedString $title,
+        public LocalizedString  $title,
 
         #[Groups(['shopify'])]
         #[SerializedName('body_html')]
-        public LocalizedString $bodyHtml,
+        public LocalizedString  $bodyHtml,
 
         #[Groups(['shopify'])]
-        public string          $vendor,
+        public string           $vendor,
 
         #[Groups(['shopify'])]
-        public string          $price,
+        public string           $price,
 
         #[Groups(['shopify'])]
         #[SerializedName('compare_at_price')]
-        public ?string         $compareAtPrice = null,
+        public ?string          $compareAtPrice,
 
         #[Groups(['shopify'])]
         #[SerializedName('product_type')]
-        public string          $productType,
+        public string           $productType,
 
         #[Groups(['shopify'])]
-        public ?bool         $isGiftCard,
+        public ?bool            $isGiftCard,
 
         #[Groups(['shopify'])]
-        public ?LocalizedString         $handle,
+        public ?LocalizedString $handle,
 
         #[Groups(['shopify'])]
-        public ?string         $status,
+        public ?string          $status,
 
         #[Groups(['shopify'])]
         #[SerializedName('published_scope')]
-        public ?string         $publishedScope,
+        public ?string          $publishedScope,
 
         #[Groups(['shopify'])]
-        public ?array          $variants,
+        public ?array           $variants,
 
         #[Groups(['shopify'])]
-        public string          $imageUrl,
+        public ?string          $imageUrl,
+        #[Groups(['shopify'])]
+        public array            $attributes,
 
         #[Groups(['shopify'])]
-        public array           $attributes,
+        public LocalizedString  $tags,
 
         #[Groups(['shopify'])]
-        public LocalizedString $tags,
-
-        #[Groups(['shopify'])]
-        public ?string         $id = null,
+        public ?string          $id = null,
 
         #[Groups(['shopify'])]
         #[SerializedName('created_at')]
-        public ?string         $createdAt = null,
+        public ?string          $createdAt = null,
 
         #[Groups(['shopify'])]
         #[SerializedName('updated_at')]
-        public ?string         $updatedAt = null,
+        public ?string          $updatedAt = null,
 
         #[Groups(['shopify'])]
         #[SerializedName('published_at')]
-        public ?string         $publishedAt = null,
+        public ?string          $publishedAt = null,
 
         #[Groups(['shopify'])]
         #[SerializedName('category_product_order')]
-        public ?string            $categoryProductOrder = null,
+        public ?string          $categoryProductOrder = null,
 
         #[Groups(['shopify'])]
         #[SerializedName('tax_set_name')]
-        public ?string         $taxSetName = null,
+        public ?string          $taxSetName = null,
 
         #[Groups(['shopify'])]
         #[SerializedName('is_bundle')]
-        public bool            $isBundle = false,
+        public bool             $isBundle = false,
 
         #[Groups(['shopify'])]
         #[SerializedName('new_from')]
-        public ?string         $newFrom = null,
+        public ?string          $newFrom = null,
 
         #[Groups(['shopify'])]
         #[SerializedName('new_to')]
-        public ?string         $newTo = null,
+        public ?string          $newTo = null,
     )
     {
     }

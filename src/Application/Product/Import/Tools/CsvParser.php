@@ -45,4 +45,5 @@ class CsvParser
 
         return $file;
     }
+
 }

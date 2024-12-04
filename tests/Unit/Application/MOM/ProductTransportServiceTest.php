@@ -1,71 +1,95 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Tests\Unit\Application\MOM;
 
 use App\Application\MOM\ProductTransportService;
-use App\Domain\DTO\AbstractProductDTO;
-use App\Domain\DTO\ConcreteProductDTO;
+use App\Domain\DTO\ShopifyProduct;
 use App\Domain\Message\MessengerInterface;
 use App\Domain\Message\ProductMessage;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 class ProductTransportServiceTest extends TestCase
 {
+    /** @var MessengerInterface|MockObject */
     private MessengerInterface $messengerMock;
-    private ProductTransportService $transportService;
+
+    /** @var ProductTransportService */
+    private ProductTransportService $productTransportService;
 
     protected function setUp(): void
     {
+        parent::setUp();
+
+        // Create a mock for the MessengerInterface
         $this->messengerMock = $this->createMock(MessengerInterface::class);
-        $this->transportService = new ProductTransportService($this->messengerMock);
+
+        // Instantiate the ProductTransportService with the mocked messenger
+        $this->productTransportService = new ProductTransportService($this->messengerMock);
     }
 
-    public function testDispatchWithAbstractProductDTO(): void
+    public function testDispatchCallsMessengerWithProductMessage(): void
     {
-        $abstractProductDTO = $this->createMock(AbstractProductDTO::class);
+        // Arrange
+        /** @var ShopifyProduct|MockObject $shopifyProduct */
+        $shopifyProduct = $this->createMock(ShopifyProduct::class);
 
-        $expectedMessage = new ProductMessage($abstractProductDTO);
-
+        // Expect that messenger's dispatch method will be called once with a ProductMessage containing $shopifyProduct
         $this->messengerMock->expects($this->once())
             ->method('dispatch')
-            ->with($this->equalTo($expectedMessage))
+            ->with($this->callback(function ($message) use ($shopifyProduct) {
+                return $message instanceof ProductMessage
+                    && $message->getContent() === $shopifyProduct;
+            }))
             ->willReturn(true);
 
-        $result = $this->transportService->dispatch($abstractProductDTO);
+        // Act
+        $result = $this->productTransportService->dispatch($shopifyProduct);
 
-        $this->assertTrue($result);
+        // Assert
+        $this->assertTrue($result, 'Dispatch should return true when messenger dispatch returns true.');
     }
 
-    public function testDispatchWithConcreteProductDTO(): void
+    public function testDispatchReturnsFalseWhenMessengerReturnsFalse(): void
     {
-        $concreteProductDTO = $this->createMock(ConcreteProductDTO::class);
-
-        $expectedMessage = new ProductMessage($concreteProductDTO);
+        /** @var ShopifyProduct|MockObject $shopifyProduct */
+        $shopifyProduct = $this->createMock(ShopifyProduct::class);
 
         $this->messengerMock->expects($this->once())
             ->method('dispatch')
-            ->with($this->equalTo($expectedMessage))
-            ->willReturn(true);
-
-        $result = $this->transportService->dispatch($concreteProductDTO);
-
-        $this->assertTrue($result);
-    }
-
-    public function testDispatchReturnsFalseOnMessengerFailure(): void
-    {
-        $abstractProductDTO = $this->createMock(AbstractProductDTO::class);
-
-        $expectedMessage = new ProductMessage($abstractProductDTO);
-
-        $this->messengerMock->expects($this->once())
-            ->method('dispatch')
-            ->with($this->equalTo($expectedMessage))
             ->willReturn(false);
 
-        $result = $this->transportService->dispatch($abstractProductDTO);
+        $result = $this->productTransportService->dispatch($shopifyProduct);
 
-        $this->assertFalse($result);
+        $this->assertFalse($result, 'Dispatch should return false when messenger dispatch returns false.');
+    }
+
+    public function testDispatchPropagatesExceptionsFromMessenger(): void
+    {
+        /** @var ShopifyProduct|MockObject $shopifyProduct */
+        $shopifyProduct = $this->createMock(ShopifyProduct::class);
+
+        $exception = new RuntimeException('Dispatch failed');
+
+        $this->messengerMock->expects($this->once())
+            ->method('dispatch')
+            ->willThrowException($exception);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Dispatch failed');
+
+        $this->productTransportService->dispatch($shopifyProduct);
+    }
+
+    public function testDispatchWithInvalidShopifyProductThrowsTypeError(): void
+    {
+        $invalidProduct = null;
+
+        $this->expectException(\TypeError::class);
+
+        $this->productTransportService->dispatch($invalidProduct);
     }
 }
