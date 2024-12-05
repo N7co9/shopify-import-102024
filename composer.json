@@ -70,7 +70,8 @@
   },
   "require-dev": {
     "mikey179/vfsstream": "^1.6",
-    "phpunit/phpunit": "^9.5",
+    "mockery/mockery": "^1.6",
+    "phpunit/phpunit": "^9.6",
     "roave/security-advisories": "dev-latest",
     "symfony/browser-kit": "7.1.*",
     "symfony/css-selector": "7.1.*",

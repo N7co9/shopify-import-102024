@@ -14,16 +14,16 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 class GraphQLConnector implements GraphQLInterface
 {
     private HttpClientInterface $client;
-    private string $shopUrl;
-    private string $accessToken;
+    private ?string $shopUrl;
+    private ?string $accessToken;
 
     public function __construct(
         string $shopUrl = null,
         string $accessToken = null
     )
     {
-        $this->shopUrl = $shopUrl ?? $_ENV['SHOPIFY_URL'];
-        $this->accessToken = $accessToken ?? $_ENV['SHOPIFY_ADMIN_API_ACCESS_TOKEN'];
+        $this->shopUrl = $shopUrl ?? ($_ENV['SHOPIFY_URL'] ?? null);
+        $this->accessToken = $accessToken ?? ($_ENV['SHOPIFY_ADMIN_API_ACCESS_TOKEN'] ?? null);
 
         if (!$this->shopUrl || !$this->accessToken) {
             throw new \RuntimeException('Shopify URL and access token must be provided');
@@ -58,7 +58,7 @@ class GraphQLConnector implements GraphQLInterface
 
             $data = $response->toArray();
 
-            if (isset($data['errors']) && !empty($data['errors'])) {
+            if (!empty($data['errors'])) {
                 throw new \RuntimeException("GraphQL query returned errors: " . json_encode($data['errors']));
             }
 

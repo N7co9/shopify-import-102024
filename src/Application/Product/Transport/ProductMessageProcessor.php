@@ -31,7 +31,7 @@ class ProductMessageProcessor implements ProductProcessorInterface
         $this->sendProductToShopify($input, $mutation);
     }
 
-    private function sendProductToShopify(array $input, string $mutation): void
+    public function sendProductToShopify(array $input, string $mutation): void
     {
         try {
             $variables = $this->prepareVariables($input);
@@ -50,7 +50,7 @@ class ProductMessageProcessor implements ProductProcessorInterface
         }
     }
 
-    private function attachLocationIdByName(ShopifyProduct $product): void
+    public function attachLocationIdByName(ShopifyProduct $product): void
     {
         foreach ($product->variants as $variant) {
 
@@ -83,7 +83,7 @@ class ProductMessageProcessor implements ProductProcessorInterface
         }
     }
 
-    private function sendTrackInventoryRequest(array $productSetResponse): void
+    public function sendTrackInventoryRequest(array $productSetResponse): void
     {
         foreach ($productSetResponse['productSet']['product']['variants']['nodes'] as $variant) {
             $inventoryItemId = $variant['inventoryItem']['id'];
@@ -104,7 +104,7 @@ class ProductMessageProcessor implements ProductProcessorInterface
 
     }
 
-    private function prepareVariables(array $input): array
+    public function prepareVariables(array $input): array
     {
         return [
             'synchronous' => true,
@@ -112,22 +112,25 @@ class ProductMessageProcessor implements ProductProcessorInterface
         ];
     }
 
-    private function hasGraphQLErrors(array $response): bool
+    public function hasGraphQLErrors(array $response): bool
     {
         return !empty($response['errors']) || !empty($response['productSet']['userErrors']);
     }
 
-    private function handleGraphQLError(array $response): void
+    public function handleGraphQLError(array $response): void
     {
+        $errorMessage = 'An Exception while handling a GraphQL Error Response occurred';
+
         try {
             $errorMessage = json_encode($response, JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
             $this->logger->logException($e, 'api');
         }
+
         throw new RuntimeException(sprintf('GraphQL response contains errors: %s', $errorMessage));
     }
 
-    private function logSuccess(array $response): void
+    public function logSuccess(array $response): void
     {
         $productId = $response['productSet']['product']['id'] ?? 'unknown';
         $this->logger->logSuccess(
@@ -136,7 +139,7 @@ class ProductMessageProcessor implements ProductProcessorInterface
         );
     }
 
-    private function logError(\Throwable $e): void
+    public function logError(\Throwable $e): void
     {
         $this->logger->logException(
             new RuntimeException(

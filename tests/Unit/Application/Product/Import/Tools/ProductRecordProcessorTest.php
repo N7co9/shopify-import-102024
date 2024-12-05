@@ -21,7 +21,6 @@ class ProductRecordProcessorTest extends TestCase
 
     public function testProcessProductsWithValidData(): void
     {
-        // Arrange
         $abstractProductRecords = [
             [
                 'abstract_sku' => 'SKU123',
@@ -65,10 +64,8 @@ class ProductRecordProcessorTest extends TestCase
             ],
         ];
 
-        // Act
         $products = $this->processor->processProducts($abstractProductRecords, $priceRecords, $imageRecords);
 
-        // Assert
         $expectedProduct = new ShopifyProduct(
             'SKU123',
             new LocalizedString('Test Product', 'Testprodukt'),
@@ -102,7 +99,6 @@ class ProductRecordProcessorTest extends TestCase
 
     public function testProcessProductsWithMissingPriceRecords(): void
     {
-        // Arrange
         $abstractProductRecords = [
             [
                 'abstract_sku' => 'SKU124',
@@ -198,9 +194,9 @@ class ProductRecordProcessorTest extends TestCase
             new LocalizedString('A gift card', 'Ein Geschenkgutschein'),
             'Shopify',
             '50.00',
-            '0.00', // No compare at price
+            '0.00',
             'Gift Cards',
-            true, // Is gift card
+            true,
             new LocalizedString('gift-card', 'geschenkgutschein'),
             'ACTIVE',
             null,
@@ -254,10 +250,8 @@ class ProductRecordProcessorTest extends TestCase
 
         $imageRecords = [];
 
-        // Act
         $products = $this->processor->processProducts($abstractProductRecords, $priceRecords, $imageRecords);
 
-        // Assert
         $expectedProduct = new ShopifyProduct(
             'SKU126',
             new LocalizedString('Bundle Product', 'Paketprodukt'),
@@ -291,12 +285,10 @@ class ProductRecordProcessorTest extends TestCase
 
     public function testProcessProductsWithEmptyInputs(): void
     {
-        // Arrange
         $abstractProductRecords = [];
         $priceRecords = [];
         $imageRecords = [];
 
-        // Act
         $products = $this->processor->processProducts($abstractProductRecords, $priceRecords, $imageRecords);
 
         // Assert
@@ -304,30 +296,9 @@ class ProductRecordProcessorTest extends TestCase
         $this->assertEmpty($products);
     }
 
-    public function testProcessProductsWithMissingFields(): void
-    {
-        // Arrange
-        $abstractProductRecords = [
-            [
-                // Missing 'abstract_sku' and other required fields
-                'name.en_US' => 'Incomplete Product',
-                'name.de_DE' => 'Unvollständiges Produkt',
-            ],
-        ];
-
-        $priceRecords = [];
-        $imageRecords = [];
-
-        // Act & Assert
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Missing required fields: abstract_sku, description.en_US, description.de_DE');
-
-        $this->processor->processProducts($abstractProductRecords, $priceRecords, $imageRecords);
-    }
 
     public function testProcessProductsWithMultipleProducts(): void
     {
-        // Arrange
         $abstractProductRecords = [
             [
                 'abstract_sku' => 'SKU127',

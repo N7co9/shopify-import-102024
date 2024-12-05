@@ -14,14 +14,6 @@ class ProductRecordProcessor
 
         foreach ($abstractProductRecords as $record) {
 
-            $this->validateRequiredFields($record, [
-                'abstract_sku',
-                'name.en_US',
-                'name.de_DE',
-                'description.en_US',
-                'description.de_DE',
-            ]);
-
             $abstractSKU = $record['abstract_sku'];
 
             $price = $this->getValue($priceRecords, 'abstract_sku', $abstractSKU, 'value_gross', '0.00');
@@ -36,20 +28,20 @@ class ProductRecordProcessor
 
             $products[] = new ShopifyProduct(
                 $abstractSKU,
-                new LocalizedString($record['name.en_US'], $record['name.de_DE']),
-                new LocalizedString($record['description.en_US'], $record['description.de_DE']),
+                new LocalizedString($record['name.en_US'] ?? '', $record['name.de_DE'] ?? ''),
+                new LocalizedString($record['description.en_US'] ?? '', $record['description.de_DE'] ?? ''),
                 'Shopify',
                 $price,
                 $compareAtPrice,
                 $record['category_key'],
                 $giftCard,
-                new LocalizedString($record['url.en_US'], $record['url.de_DE']),
+                new LocalizedString($record['url.en_US'] ?? '', $record['url.de_DE'] ?? ''),
                 'ACTIVE',
                 null,
                 null,
                 $imageUrl,
                 $attributes,
-                new LocalizedString($record['meta_keywords.en_US'], $record['meta_keywords.de_DE']),
+                new LocalizedString($record['meta_keywords.en_US'] ?? '', $record['meta_keywords.de_DE'] ?? ''),
                 null,
                 date('Y-m-d H:i:s'),
                 null,
@@ -105,17 +97,4 @@ class ProductRecordProcessor
         return str_contains($record['name.de_DE'], 'Geschenkgutschein') || str_contains($record['name.en_US'], 'Gift Card');
     }
 
-    private function validateRequiredFields(array $record, array $requiredFields): void
-    {
-        $missingFields = [];
-        foreach ($requiredFields as $field) {
-            if (!array_key_exists($field, $record) || $record[$field] === null || $record[$field] === '') {
-                $missingFields[] = $field;
-            }
-        }
-
-        if (!empty($missingFields)) {
-            throw new \InvalidArgumentException('Missing required fields: ' . implode(', ', $missingFields));
-        }
-    }
 }
