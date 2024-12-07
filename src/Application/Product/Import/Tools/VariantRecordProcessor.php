@@ -102,7 +102,9 @@ class VariantRecordProcessor
 
         if (!empty($record['attribute_key_1'])) {
             $options[$record['attribute_key_1']] = $record['value_1'];
-        } elseif (!empty($record['attribute_key_2']) && !str_contains($record['attribute_key_2'], 'upcs')) {
+        }
+
+        if (!empty($record['attribute_key_2']) && !str_contains($record['attribute_key_2'], 'upcs')) {
             $options[$record['attribute_key_2']] = $record['value_2'];
         }
 

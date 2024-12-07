@@ -3,11 +3,11 @@ declare(strict_types=1);
 
 namespace App\Application\Product\Transport;
 
-use App\Application\Logger\LoggerInterface;
 use App\Application\Product\Transport\Tools\Mutation;
 use App\Application\Product\Transport\Tools\ProductCreation;
 use App\Domain\API\GraphQLInterface;
 use App\Domain\DTO\ShopifyProduct;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
 
 class ProductMessageProcessor implements ProductProcessorInterface
@@ -55,7 +55,7 @@ class ProductMessageProcessor implements ProductProcessorInterface
         foreach ($product->variants as $variant) {
 
             if (!isset($variant->inventoryLocation['name']) || empty($variant->inventoryLocation)) {
-                $this->logger->logException(new RuntimeException('No valid Inventory location found'), 'api');
+                $this->logger->error('No valid Inventory location found');
                 return;
             }
 
@@ -96,10 +96,10 @@ class ProductMessageProcessor implements ProductProcessorInterface
             $query = $this->mutation->getInventoryItemUpdateMutation();
             $response = $this->graphQLInterface->executeQuery($query, $variables);
             if (!empty($response['inventoryItemUpdate']['userErrors'])) {
-                $this->logger->logException(new RuntimeException(sprintf('An Exception occurred while sending a TrackInventoryRequest with InventoryItemId: %s', $inventoryItemId)), 'api');
+                $this->logger->error(sprintf('An Exception occurred while sending a TrackInventoryRequest with InventoryItemId: %s', $inventoryItemId));
                 return;
             }
-            $this->logger->logSuccess(sprintf('Inventory Item: %s erfolgreich Tracking aktiviert', $inventoryItemId), 'api');
+            $this->logger->info(sprintf('Inventory Item: %s erfolgreich Tracking aktiviert', $inventoryItemId));
         }
 
     }
@@ -124,7 +124,7 @@ class ProductMessageProcessor implements ProductProcessorInterface
         try {
             $errorMessage = json_encode($response, JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
-            $this->logger->logException($e, 'api');
+            $this->logger->critical($e->getMessage());
         }
 
         throw new RuntimeException(sprintf('GraphQL response contains errors: %s', $errorMessage));
@@ -133,21 +133,11 @@ class ProductMessageProcessor implements ProductProcessorInterface
     public function logSuccess(array $response): void
     {
         $productId = $response['productSet']['product']['id'] ?? 'unknown';
-        $this->logger->logSuccess(
-            sprintf('Successfully created product with options, ID: %s', $productId),
-            'api'
-        );
+        $this->logger->info(sprintf('Successfully created product with options, ID: %s', $productId));
     }
 
     public function logError(\Throwable $e): void
     {
-        $this->logger->logException(
-            new RuntimeException(
-                sprintf('Error sending product with options to Shopify: %s', $e->getMessage()),
-                $e->getCode(),
-                $e
-            ),
-            'api'
-        );
+        $this->logger->critical(sprintf('Error sending product with options to Shopify: %s', $e->getMessage()));
     }
 }

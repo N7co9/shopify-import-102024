@@ -6,6 +6,7 @@
 /public/bundles/
 /var/
 /vendor/
+/mutation
 ###< symfony/framework-bundle ###
 # Cache and logs (Symfony2)
 /app/cache/*

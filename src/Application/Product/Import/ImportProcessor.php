@@ -3,16 +3,16 @@ declare(strict_types=1);
 
 namespace App\Application\Product\Import;
 
-use App\Application\Logger\LoggerInterface;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Symfony\Component\Finder\Finder;
 
 class ImportProcessor implements ImportInterface
 {
     public function __construct(
-        private readonly ShopifyVariantImporter $variantImporter,
-        private readonly ShopifyProductImporter $productImporter,
-        private readonly LoggerInterface        $logger
+        private readonly ShopifyVariantImporter   $variantImporter,
+        private readonly ShopifyProductImporter   $productImporter,
+        private readonly LoggerInterface $logger
     )
     {
     }
@@ -56,7 +56,7 @@ class ImportProcessor implements ImportInterface
 
         foreach ($requiredFiles as $requiredFile) {
             if (!isset($files[$requiredFile])) {
-                $this->logger->logError(sprintf('Required CSV file "%s" is missing.', $requiredFile), 'import');
+                $this->logger->error(sprintf('Required CSV file "%s" is missing.', $requiredFile));
                 throw new RuntimeException(sprintf('Required CSV file "%s" is missing.', $requiredFile));
             }
         }

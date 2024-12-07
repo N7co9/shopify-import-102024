@@ -18,6 +18,29 @@ class VariantRecordProcessorTest extends TestCase
         $this->processor = new VariantRecordProcessor();
     }
 
+    public function testGetOptionWithMultipleAttributes(): void
+    {
+        $record = [
+            'attribute_key_1' => 'Size',
+            'value_1' => 'M',
+            'attribute_key_2' => 'Color',
+            'value_2' => 'Red',
+        ];
+
+        $processor = new VariantRecordProcessor();
+        $ref = new \ReflectionClass($processor);
+        $method = $ref->getMethod('getOption');
+
+        $options = $method->invoke($processor, $record);
+
+        $expectedOptions = [
+            'Size' => 'M',
+            'Color' => 'Red',
+        ];
+
+        $this->assertEquals($expectedOptions, $options);
+    }
+
     public function testProcessVariantsWithValidData(): void
     {
         $stockRecords = [
@@ -88,7 +111,8 @@ class VariantRecordProcessorTest extends TestCase
             null,
             'Not Available',
             '119.99',
-            ['Size' => 'M'],
+            ['Size' => 'M',
+                'Color' => 'Red'],
             date('Y-m-d H:i:s'),
             null,
             'http://example.com/variant_image.jpg',

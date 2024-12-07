@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Application\Product\Import;
 
 use App\Application\Product\Import\ImportProcessor;
+use App\Application\Product\Import\ShopifyProductImporter;
+use App\Application\Product\Import\ShopifyVariantImporter;
 use App\Domain\DTO\LocalizedString;
 use App\Domain\DTO\ShopifyProduct;
 use App\Domain\DTO\ShopifyVariant;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use ReflectionClass;
 
 class ImportProcessorTest extends TestCase
 {
@@ -18,10 +22,14 @@ class ImportProcessorTest extends TestCase
     {
         parent::setUp();
 
+        $variantImporterMock = $this->createMock(ShopifyVariantImporter::class);
+        $productImporterMock = $this->createMock(ShopifyProductImporter::class);
+        $loggerMock = $this->createMock(LoggerInterface::class);
+
         $this->importProcessor = new ImportProcessor(
-            $this->createMock(\App\Application\Product\Import\ShopifyVariantImporter::class),
-            $this->createMock(\App\Application\Product\Import\ShopifyProductImporter::class),
-            $this->createMock(\App\Application\Logger\LoggerInterface::class)
+            $variantImporterMock,
+            $productImporterMock,
+            $loggerMock
         );
     }
 
@@ -31,6 +39,67 @@ class ImportProcessorTest extends TestCase
 
         parent::tearDown();
     }
+
+    public function testProcessImportFailsWhenAbstractFileIsMissingAndLogsError(): void
+    {
+        $testDir = sys_get_temp_dir() . '/missing_file_test_' . uniqid('', true);
+        mkdir($testDir);
+        file_put_contents($testDir . '/product_concrete.csv', 'dummy');
+        file_put_contents($testDir . '/product_price.csv', 'dummy');
+        file_put_contents($testDir . '/product_stock.csv', 'dummy');
+        file_put_contents($testDir . '/product_image.csv', 'dummy');
+
+        $loggerMock = $this->createMock(LoggerInterface::class);
+        $loggerMock->expects($this->once())
+            ->method('error')
+            ->with($this->stringContains('product_abstract.csv'));
+
+        $variantImporterMock = $this->createMock(ShopifyVariantImporter::class);
+        $productImporterMock = $this->createMock(ShopifyProductImporter::class);
+
+        $processor = new ImportProcessor($variantImporterMock, $productImporterMock, $loggerMock);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('"product_abstract.csv" is missing');
+
+        $processor->processImport($testDir);
+
+        array_map('unlink', glob($testDir . '/*.csv'));
+        rmdir($testDir);
+    }
+
+    public function testAttachLocationIdByNameUsesLocationName(): void
+    {
+        $variant = new ShopifyVariant(
+            'AB123', 'SKU100', 'Test Variant', 1, '10', ['name' => 'Warehouse A'], '0', '99.99'
+        );
+        $product = new ShopifyProduct(
+            'SKU100', new LocalizedString('Test', 'Test'), new LocalizedString('Desc', 'Desc'),
+            'Vendor', '50.00', null, 'Type', false, null, 'active', 'global', [$variant], null, [], new LocalizedString('Tag', 'Tag')
+        );
+
+        $graphQLMock = $this->createMock(\App\Domain\API\GraphQLInterface::class);
+        $graphQLMock->expects($this->once())
+            ->method('executeQuery')
+            ->with($this->stringContains('locationName'), $this->equalTo(['locationName' => 'Warehouse A']))
+            ->willReturn([
+                'locations' => [
+                    'edges' => [
+                        ['node' => ['id' => 'loc-id', 'name' => 'Warehouse A']]
+                    ]
+                ]
+            ]);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $productCreationMock = $this->createMock(\App\Application\Product\Transport\Tools\ProductCreation::class);
+        $mutationMock = $this->createMock(\App\Application\Product\Transport\Tools\Mutation::class);
+
+        $processor = new \App\Application\Product\Transport\ProductMessageProcessor($productCreationMock, $mutationMock, $graphQLMock, $logger);
+        $processor->attachLocationIdByName($product);
+
+        $this->assertEquals('loc-id', $product->variants[0]->inventoryLocation['id']);
+    }
+
 
     public function testMapProductsToVariants(): void
     {
@@ -219,14 +288,11 @@ class ImportProcessorTest extends TestCase
 
         $variants = [$variant1, $variant2, $variant3];
 
-        // Use reflection to access the private method
-        $reflection = new \ReflectionClass($this->importProcessor);
+        $reflection = new ReflectionClass($this->importProcessor);
         $method = $reflection->getMethod('mapProductsToVariants');
 
-        // Act
         $result = $method->invoke($this->importProcessor, $products, $variants);
 
-        // Assert
         $this->assertCount(2, $result);
 
         foreach ($result as $product) {
@@ -237,7 +303,7 @@ class ImportProcessorTest extends TestCase
                 }
             } elseif ($product->abstractSku === 'AB124') {
                 $this->assertCount(1, $product->variants);
-                $this->assertSame('AB124', $product->variants[1]->abstractSku);
+                $this->assertSame('AB124', $product->variants[array_key_first($product->variants)]->abstractSku);
             } else {
                 $this->fail('Unexpected product abstractSku: ' . $product->abstractSku);
             }

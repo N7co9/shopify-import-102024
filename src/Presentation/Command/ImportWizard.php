@@ -3,10 +3,9 @@ declare(strict_types=1);
 
 namespace App\Presentation\Command;
 
-use App\Application\Index\IndexProcessorInterface;
-use App\Application\Logger\LoggerInterface;
 use App\Application\MOM\TransportInterface;
 use App\Application\Product\Import\ImportInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -25,7 +24,6 @@ class ImportWizard extends Command
         private ImportInterface         $import,
         private TransportInterface      $transport,
         private LoggerInterface         $logger,
-        private IndexProcessorInterface $indexProcessor
     )
     {
         parent::__construct();
@@ -60,11 +58,11 @@ class ImportWizard extends Command
             $products = $this->import->processImport($directory);
             $progressBar->finish();
             $io->newLine(2);
-            $this->logger->logSuccess(sprintf('Import erfolgreich für Verzeichnis: %s', $directory), 'import');
+            $this->logger->info(sprintf('Import erfolgreich für Verzeichnis: %s', $directory));
         } catch (\Exception $e) {
             $progressBar->finish();
             $io->newLine(2);
-            $this->logger->logException($e, 'import');
+            $this->logger->error($e->getMessage());
             $io->error(sprintf('Fehler beim Import: %s', $e->getMessage()));
             return Command::FAILURE;
         }
@@ -72,11 +70,11 @@ class ImportWizard extends Command
         $event = $stopwatch->stop('import-process');
         $duration = $event->getDuration() / 1000;
 
-        $this->logger->logStatistics([
+        $this->logger->notice(json_encode([
             'directory' => $directory,
             'execution_time' => $duration,
             'products_count' => count($products),
-        ], 'import');
+        ], JSON_THROW_ON_ERROR));
 
         $this->displayDetailedStatistics($io, count($products), $duration);
 
@@ -85,10 +83,6 @@ class ImportWizard extends Command
         } else {
             $io->note('Die Produkte wurden nicht versendet.');
         }
-
-        $this->logger->writeStatistics();
-
-        $this->indexProcessor->indexLogs('import');
 
         return Command::SUCCESS;
     }
@@ -105,7 +99,7 @@ class ImportWizard extends Command
         foreach ($products as $product) {
             if (!$this->transport->dispatch($product)) {
                 $io->error(sprintf('Fehler beim Senden der Nachricht für Produkt: %s', $product->abstractSku));
-                $this->logger->logError(sprintf('Fehler beim Senden der Nachricht für Produkt: %s', $product->abstractSku), 'transport');
+                $this->logger->error(sprintf('Fehler beim Senden der Nachricht für Produkt: %s', $product->abstractSku));
                 $allSent = false;
             }
             $progressBar->advance();
@@ -116,11 +110,10 @@ class ImportWizard extends Command
 
         if ($allSent) {
             $io->success('Alle Produkte erfolgreich an RabbitMQ gesendet.');
-            $this->logger->logSuccess('Alle Produkte erfolgreich an RabbitMQ gesendet.', 'transport');
-            $this->indexProcessor->indexLogs('transport');
+            $this->logger->notice('Alle Produkte erfolgreich an RabbitMQ gesendet.');
         } else {
             $io->warning('Einige Produkte konnten nicht gesendet werden.');
-            $this->logger->logError('Einige Produkte konnten nicht gesendet werden.', 'transport');
+            $this->logger->notice('Einige Produkte konnten nicht gesendet werden.');
         }
     }
 

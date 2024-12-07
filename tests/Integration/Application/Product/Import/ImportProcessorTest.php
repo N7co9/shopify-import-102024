@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Application\Product\Import;
 
-use App\Application\Logger\LoggerInterface;
 use App\Application\Product\Import\ImportProcessor;
 use App\Application\Product\Import\ShopifyProductImporter;
 use App\Application\Product\Import\ShopifyVariantImporter;
@@ -12,6 +11,7 @@ use App\Application\Product\Import\Tools\CsvParser;
 use App\Application\Product\Import\Tools\ProductRecordProcessor;
 use App\Application\Product\Import\Tools\VariantRecordProcessor;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class ImportProcessorTest extends TestCase
 {
@@ -55,7 +55,6 @@ class ImportProcessorTest extends TestCase
 
     protected function tearDown(): void
     {
-        // Clean up temporary files
         array_map('unlink', glob($this->testDirectory . '/*.csv'));
         rmdir($this->testDirectory);
 
@@ -66,28 +65,18 @@ class ImportProcessorTest extends TestCase
 
     public function testProcessImportWithValidData(): void
     {
-        // Act
         $result = $this->importProcessor->processImport($this->testDirectory);
 
-        // Assert
         $this->assertIsArray($result);
-        // Since we have dummy data, the actual content might not be meaningful
-        // Further assertions can be added based on the expected behavior with dummy data
     }
 
     public function testProcessImportWithMissingFile(): void
     {
-        // Arrange
-        // Remove one required file to simulate a missing file
         unlink($this->testDirectory . '/product_price.csv');
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Required CSV file "product_price.csv" is missing.');
 
-        // Act
         $this->importProcessor->processImport($this->testDirectory);
-
-        // Assert
-        // Exception is expected
     }
 }

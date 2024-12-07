@@ -19,6 +19,61 @@ class ProductRecordProcessorTest extends TestCase
         $this->processor = new ProductRecordProcessor();
     }
 
+    public function testIsGiftCardOnlyGermanKeyword(): void
+    {
+        $record = [
+            'name.de_DE' => 'Ein Geschenkgutschein für dich',
+            'name.en_US' => 'Some random product'
+        ];
+
+        $processor = new ProductRecordProcessor();
+        $ref = new \ReflectionClass($processor);
+        $method = $ref->getMethod('isGiftCard');
+
+        $this->assertTrue($method->invoke($processor, $record));
+    }
+
+    public function testIsGiftCardOnlyEnglishKeyword(): void
+    {
+        $record = [
+            'name.de_DE' => 'Ein gewöhnliches Produkt',
+            'name.en_US' => 'A cool Gift Card for everyone'
+        ];
+
+        $processor = new ProductRecordProcessor();
+        $ref = new \ReflectionClass($processor);
+        $method = $ref->getMethod('isGiftCard');
+
+        $this->assertTrue($method->invoke($processor, $record));
+    }
+
+    public function testIsGiftCardBothKeywords(): void
+    {
+        $record = [
+            'name.de_DE' => 'Geschenkgutschein super',
+            'name.en_US' => 'Best Gift Card ever'
+        ];
+
+        $processor = new ProductRecordProcessor();
+        $ref = new \ReflectionClass($processor);
+        $method = $ref->getMethod('isGiftCard');
+
+        $this->assertTrue($method->invoke($processor, $record));
+    }
+
+    public function testIsGiftCardNoKeywords(): void
+    {
+        $record = [
+            'name.de_DE' => 'Ein gewöhnliches Produkt',
+            'name.en_US' => 'A cool product for everyone'
+        ];
+
+        $processor = new ProductRecordProcessor();
+        $ref = new \ReflectionClass($processor);
+        $method = $ref->getMethod('isGiftCard');
+
+        $this->assertFalse($method->invoke($processor, $record));
+    }
     public function testProcessProductsWithValidData(): void
     {
         $abstractProductRecords = [

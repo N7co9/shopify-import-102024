@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\RabbitMQ;
 
-use App\Application\Logger\LoggerInterface;
 use App\Domain\Message\MessengerInterface;
 use App\Domain\Message\ProductMessage;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Bridge\Amqp\Transport\AmqpStamp;
 use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -25,7 +25,7 @@ class Messenger implements MessengerInterface
         try {
             $this->bus->dispatch($message, [new AmqpStamp('shopify_product')]);
         } catch (ExceptionInterface $e) {
-            $this->logger->logException($e, 'transport');
+            $this->logger->critical($e->getMessage());
             return false;
         }
 
