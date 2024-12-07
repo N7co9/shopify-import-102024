@@ -20,4 +20,5 @@ interface LoggerInterface
     public function getStatistics(string $logType = null): array;
 
     public function writeStatistics(string $logType = null): void;
+    public function getCollectedLogs(?string $logType = null): array;
 }

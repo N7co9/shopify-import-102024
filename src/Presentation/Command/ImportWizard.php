@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Command;
 
+use App\Application\Index\IndexProcessorInterface;
 use App\Application\Logger\LoggerInterface;
 use App\Application\MOM\TransportInterface;
 use App\Application\Product\Import\ImportInterface;
@@ -20,7 +21,12 @@ use Symfony\Component\Stopwatch\Stopwatch;
 )]
 class ImportWizard extends Command
 {
-    public function __construct(private ImportInterface $import, private TransportInterface $transport, private LoggerInterface $logger)
+    public function __construct(
+        private ImportInterface         $import,
+        private TransportInterface      $transport,
+        private LoggerInterface         $logger,
+        private IndexProcessorInterface $indexProcessor
+    )
     {
         parent::__construct();
     }
@@ -82,6 +88,8 @@ class ImportWizard extends Command
 
         $this->logger->writeStatistics();
 
+        $this->indexProcessor->indexLogs('import');
+
         return Command::SUCCESS;
     }
 
@@ -100,7 +108,6 @@ class ImportWizard extends Command
                 $this->logger->logError(sprintf('Fehler beim Senden der Nachricht für Produkt: %s', $product->abstractSku), 'transport');
                 $allSent = false;
             }
-            $this->logger->logSuccess(sprintf('%s: Erfolgreich an Message Broker übergeben', $product->abstractSku), 'transport');
             $progressBar->advance();
         }
 
@@ -110,6 +117,7 @@ class ImportWizard extends Command
         if ($allSent) {
             $io->success('Alle Produkte erfolgreich an RabbitMQ gesendet.');
             $this->logger->logSuccess('Alle Produkte erfolgreich an RabbitMQ gesendet.', 'transport');
+            $this->indexProcessor->indexLogs('transport');
         } else {
             $io->warning('Einige Produkte konnten nicht gesendet werden.');
             $this->logger->logError('Einige Produkte konnten nicht gesendet werden.', 'transport');
