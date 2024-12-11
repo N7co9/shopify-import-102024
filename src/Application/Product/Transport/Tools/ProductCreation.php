@@ -85,12 +85,7 @@ class ProductCreation
                     'position' => $position++,
                     'values' => [
                         ['name' => $variant->title]
-                    ],
-                    'linkedMetafield' => [
-                        'key' => strtolower(str_replace(' ', '_', $variant->title)),
-                        'namespace' => 'product.options',
-                        'values' => [$variant->title]
-                    ],
+                    ]
                 ];
             } else {
                 foreach ($variant->option as $key => $value) {
@@ -108,25 +103,14 @@ class ProductCreation
             $optionSetInputs[] = [
                 'name' => ucfirst(str_replace('_', ' ', $key)),
                 'position' => $position++,
-                'values' => array_map(fn($value) => ['name' => $value], $values),
-                'linkedMetafield' => [
-                    'key' => strtolower(str_replace(' ', '_', $key)),
-                    'namespace' => 'product.options',
-                    'values' => $values
-                ],
+                'values' => array_map(fn($value) => ['name' => $value], $values)
             ];
-        }
-
-        foreach ($optionSetInputs as $index => $option) {
-            if (isset($option['linkedMetafield'], $option['values'])) {
-                unset($optionSetInputs[$index]['linkedMetafield']);
-            }
         }
 
         return $optionSetInputs;
     }
 
-    private function formatVariantsForShopifyInput(ShopifyProduct $product): array
+    public function formatVariantsForShopifyInput(ShopifyProduct $product): array
     {
         $formattedVariants = [];
         $file = [];
@@ -144,14 +128,14 @@ class ProductCreation
 
             $formattedVariant = [
                 'optionValues' => $optionValues,
-                'price' => $variant->price ?? '0.00',
-                'inventoryPolicy' => strtoupper($variant->inventoryPolicy ?? 'DENY'),
+                'price' => $variant->price,
+                'inventoryPolicy' => $variant->inventoryPolicy,
                 'inventoryQuantities' => [
                     'locationId' => $variant->inventoryLocation['id'],
                     'name' => 'available',
                     'quantity' => (int)$variant->inventoryQuantity
                 ],
-                'taxable' => $variant->taxable ?? true,
+                'taxable' => $variant->taxable,
                 'file' => $file
             ];
 
@@ -165,7 +149,7 @@ class ProductCreation
         return $formattedVariants;
     }
 
-    private function mapVariantOptionValues($variant, array $productOptions): array
+    public function mapVariantOptionValues($variant, array $productOptions): array
     {
         $optionValues = [];
 
@@ -188,7 +172,6 @@ class ProductCreation
                                 'optionName' => $optionName,
                                 'name' => $value['name'],
                             ];
-                            break;
                         }
                     }
                 }

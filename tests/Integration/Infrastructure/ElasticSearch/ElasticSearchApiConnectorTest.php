@@ -10,6 +10,52 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 
 class ElasticSearchApiConnectorTest extends TestCase
 {
+    public function testConstructorTrimsTrailingSlashesInHost(): void
+    {
+        $hostWithTrailingSlash = 'http://127.0.0.1:9200/';
+        $httpClientMock = $this->createMock(HttpClientInterface::class);
+
+        $connector = new ElasticSearchApiConnector($hostWithTrailingSlash, $httpClientMock);
+
+        $reflection = new \ReflectionProperty(ElasticSearchApiConnector::class, 'endpoint');
+        $endpoint = $reflection->getValue($connector);
+
+        $this->assertSame('http://127.0.0.1:9200', $endpoint);
+    }
+
+    public function testIndexDocumentReturnsTrueForStatus200(): void
+    {
+        $responseMock = $this->createMock(ResponseInterface::class);
+        $responseMock
+            ->method('getStatusCode')
+            ->willReturn(200);
+
+        $httpClientMock = $this->createMock(HttpClientInterface::class);
+        $httpClientMock
+            ->method('request')
+            ->willReturn($responseMock);
+
+        $connector = new ElasticSearchApiConnector('http://127.0.0.1:9200', $httpClientMock);
+        $this->assertTrue($connector->indexDocument('test_index', ['key' => 'value']));
+    }
+
+    public function testIndexDocumentReturnsFalseForStatus300(): void
+    {
+        $responseMock = $this->createMock(ResponseInterface::class);
+        $responseMock
+            ->method('getStatusCode')
+            ->willReturn(300);
+
+        $httpClientMock = $this->createMock(HttpClientInterface::class);
+        $httpClientMock
+            ->method('request')
+            ->willReturn($responseMock);
+
+        $connector = new ElasticSearchApiConnector('http://127.0.0.1:9200', $httpClientMock);
+        $this->assertFalse($connector->indexDocument('test_index', ['key' => 'value']));
+    }
+
+
     public function testIndexDocumentReturnsTrueOnSuccess(): void
     {
         $responseMock = $this->createMock(ResponseInterface::class);

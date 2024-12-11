@@ -41,7 +41,7 @@ class ShopifyVariant
 
         #[Groups(['shopify'])]
         #[SerializedName('inventory_policy')]
-        public string  $inventoryPolicy = 'deny',
+        public string  $inventoryPolicy = 'DENY',
 
         #[Groups(['shopify'])]
         public bool    $taxable = true,

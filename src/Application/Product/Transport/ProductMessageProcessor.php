@@ -54,7 +54,7 @@ class ProductMessageProcessor implements ProductProcessorInterface
     {
         foreach ($product->variants as $variant) {
 
-            if (!isset($variant->inventoryLocation['name']) || empty($variant->inventoryLocation)) {
+            if (!isset($variant->inventoryLocation['name'])) {
                 $this->logger->error('No valid Inventory location found');
                 return;
             }

@@ -9,6 +9,66 @@ use PHPUnit\Framework\TestCase;
 
 class LogIndexingHandlerTest extends TestCase
 {
+    public function testIndexLogsGeneratesCorrectIndexName(): void
+    {
+        $logs = [
+            [
+                'message' => 'Test log entry',
+            ],
+        ];
+
+        $connectorMock = $this->createMock(ElasticSearchApiConnector::class);
+        $connectorMock
+            ->expects($this->once())
+            ->method('indexDocument')
+            ->with(
+                $this->callback(function ($indexName) {
+                    return preg_match('/^app-logs-\d{4}\.\d{2}\.\d{2}$/', $indexName) === 1;
+                }),
+                $this->callback(function ($doc) {
+                    return $doc['message'] === 'Test log entry';
+                })
+            );
+
+        $handler = new LogIndexingHandler($connectorMock);
+
+        $handler->indexLogs($logs);
+    }
+
+    public function testIndexLogsGeneratesIndexNameWithDate(): void
+    {
+        $logs = [
+            [
+                'message' => 'Test log entry'
+            ]
+        ];
+
+        $connectorMock = $this->createMock(ElasticSearchApiConnector::class);
+        $connectorMock
+            ->expects($this->once())
+            ->method('indexDocument')
+            ->with(
+                $this->stringStartsWith('app-logs-'),
+                $this->callback(function ($doc) {
+                    return $doc['message'] === 'Test log entry';
+                })
+            );
+
+        $handler = new LogIndexingHandler($connectorMock);
+
+        $originalDateFunction = \Closure::bind(function () {
+            return '2024.12.11';
+        }, null, null);
+        $dateFunctionBackup = \Closure::bind(\Closure::fromCallable('date'), null, null);
+        \Closure::bind(\Closure::fromCallable('date'), null, null);
+
+        try {
+            $handler->indexLogs($logs);
+        } finally {
+            \Closure::bind(\Closure::fromCallable('date'), null, null);
+        }
+    }
+
     public function testIndexLogsCallsConnectorForEachLogEntry(): void
     {
         $logs = [

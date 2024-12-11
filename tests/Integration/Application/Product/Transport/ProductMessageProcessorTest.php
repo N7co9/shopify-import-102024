@@ -45,6 +45,119 @@ class ProductMessageProcessorTest extends TestCase
         );
     }
 
+    public function testSendTrackInventoryRequestFailsWithoutId(): void
+    {
+        $productSetResponse = [
+            'productSet' => [
+                'product' => [
+                    'variants' => [
+                        'nodes' => [
+                            ['inventoryItem' => ['id' => 'inventory-item-id']]
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        $this->mutationMock
+            ->expects($this->once())
+            ->method('getInventoryItemUpdateMutation')
+            ->willReturn('mutation inventoryItemUpdate($id: ID!, $input: InventoryItemInput!) { ... }');
+
+        $this->graphQLMock
+            ->expects($this->once())
+            ->method('executeQuery')
+            ->with(
+                $this->isType('string'),
+                $this->callback(function ($variables) {
+                    return array_key_exists('id', $variables) && $variables['id'] === 'inventory-item-id';
+                })
+            )
+            ->willReturn([]);
+
+        $this->loggerMock
+            ->expects($this->never())
+            ->method('error');
+
+        $this->processor->sendTrackInventoryRequest($productSetResponse);
+    }
+
+    public function testPrepareVariablesIsPublic(): void
+    {
+        $input = ['key' => 'value'];
+        $expected = ['synchronous' => true, 'productSet' => $input];
+
+        $this->assertSame($expected, $this->processor->prepareVariables($input));
+    }
+
+    public function testPrepareVariables(): void
+    {
+        $input = ['key' => 'value'];
+        $expectedVariables = ['synchronous' => true, 'productSet' => $input];
+
+        $result = $this->processor->prepareVariables($input);
+
+        $this->assertSame($expectedVariables, $result);
+    }
+
+    public function testHasGraphQLErrors(): void
+    {
+        $responseWithError = [
+            'errors' => ['Some error'],
+            'productSet' => [
+                'userErrors' => []
+            ]
+        ];
+        $responseWithoutError = [
+            'errors' => [],
+            'productSet' => [
+                'userErrors' => []
+            ]
+        ];
+
+        $this->assertTrue($this->processor->hasGraphQLErrors($responseWithError));
+        $this->assertFalse($this->processor->hasGraphQLErrors($responseWithoutError));
+    }
+
+    public function testSendTrackInventoryRequestFailsWithEmptyInput(): void
+    {
+        $productSetResponse = [
+            'productSet' => [
+                'product' => [
+                    'variants' => [
+                        'nodes' => [
+                            ['inventoryItem' => ['id' => 'inventory-item-id']]
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        $this->mutationMock
+            ->expects($this->once())
+            ->method('getInventoryItemUpdateMutation')
+            ->willReturn('mutation inventoryItemUpdate($id: ID!, $input: InventoryItemInput!) { ... }');
+
+        $this->graphQLMock
+            ->expects($this->once())
+            ->method('executeQuery')
+            ->with(
+                $this->isType('string'),
+                $this->callback(function ($variables) {
+                    return isset($variables['input']['tracked']) && $variables['input']['tracked'] === true;
+                })
+            )
+            ->willReturn(['inventoryItemUpdate' => ['userErrors' => []]]);
+
+        $this->loggerMock
+            ->expects($this->once())
+            ->method('info')
+            ->with($this->stringContains('Inventory Item: inventory-item-id erfolgreich Tracking aktiviert'));
+
+        $this->processor->sendTrackInventoryRequest($productSetResponse);
+    }
+
+
     public function testAttachLocationIdByNameWithValidVariant(): void
     {
         $variant = new ShopifyVariant(

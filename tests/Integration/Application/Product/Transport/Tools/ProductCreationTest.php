@@ -28,6 +28,36 @@ class ProductCreationTest extends TestCase
         parent::tearDown();
     }
 
+    public function testGenerateProductOptionsHandlesPositionWithComplexVariants(): void
+    {
+        $product = $this->createShopifyProductWithEmptyOptions();
+
+        $productOptions = $this->productCreation->generateProductOptions($product);
+
+        $this->assertIsArray($productOptions, 'Product options must be an array.');
+        $this->assertNotEmpty($productOptions, 'Product options must not be empty.');
+
+        $lastPosition = 0;
+        foreach ($productOptions as $option) {
+            $this->assertArrayHasKey('position', $option, 'Each option must have a "position".');
+            $this->assertIsInt($option['position'], '"position" must be an integer.');
+            $this->assertGreaterThan(
+                $lastPosition,
+                $option['position'],
+                "Position ({$option['position']}) must increment sequentially after {$lastPosition}."
+            );
+            $lastPosition = $option['position'];
+        }
+
+        $positions = array_column($productOptions, 'position');
+        $this->assertSame(
+            range(1, count($productOptions)),
+            $positions,
+            'Positions must form a continuous, unique sequence starting from 1.'
+        );
+    }
+
+
     /**
      * Test the prepareInputData method with a standard ShopifyProduct
      */
@@ -100,7 +130,7 @@ class ProductCreationTest extends TestCase
 
         // Assert
         $this->assertIsArray($metafields);
-        $this->assertCount(3, $metafields); // attributes + tags + is_bundle
+        $this->assertCount(3, $metafields);
 
         $expectedMetafields = [
             [
@@ -124,6 +154,432 @@ class ProductCreationTest extends TestCase
         ];
 
         $this->assertEquals($expectedMetafields, $metafields);
+    }
+
+    public function testFormatVariantsForShopifyInputWithEdgeCases(): void
+    {
+        $product = $this->createShopifyProductWithEdgeCases();
+
+        $formattedVariants = $this->productCreation->formatVariantsForShopifyInput($product);
+
+        foreach ($formattedVariants as $variant) {
+            $this->assertArrayHasKey('file', $variant, 'Each variant should have a file key.');
+
+            $this->assertArrayHasKey('inventoryQuantities', $variant, 'Each variant should have inventoryQuantities.');
+            $this->assertArrayHasKey('locationId', $variant['inventoryQuantities'], 'Inventory quantities should include locationId.');
+            $this->assertArrayHasKey('quantity', $variant['inventoryQuantities'], 'Inventory quantities should include quantity.');
+            $this->assertIsInt($variant['inventoryQuantities']['quantity'], 'Quantity should be an integer.');
+
+            $this->assertIsString($variant['price'], 'Price should be a string.');
+            $this->assertNotEmpty($variant['price'], 'Price should not be empty.');
+            $this->assertEquals('DENY', strtoupper($variant['inventoryPolicy']), 'Inventory policy should be DENY or converted to it.');
+        }
+    }
+
+    public function testFormatVariantsForShopifyInputHandlesTaxableCorrectly()
+    {
+        $product = new ShopifyProduct(
+            abstractSku: 'TEST_SKU',
+            title: new LocalizedString('Test Title', 'de_DE'),
+            bodyHtml: new LocalizedString('<p>Test Description</p>', 'de_DE'),
+            vendor: 'Test Vendor',
+            price: '100.00',
+            compareAtPrice: null,
+            productType: 'Test Type',
+            isGiftCard: false,
+            handle: new LocalizedString('test-handle', 'de_DE'),
+            status: 'active',
+            publishedScope: null,
+            variants: [
+                new ShopifyVariant(
+                    abstractSku: 'TEST_SKU',
+                    concreteSku: 'TEST_VARIANT_SKU',
+                    title: 'Test Variant Title',
+                    position: 1,
+                    inventoryQuantity: '10',
+                    inventoryLocation: ['id' => '1'],
+                    isNeverOutOfStock: 'false',
+                    price: '10.00',
+                    inventoryManagement: 'shopify',
+                    inventoryPolicy: 'deny',
+                    taxable: false,
+                    available: true,
+                    requiresShipping: true,
+                    imageUrl: null
+                )
+            ],
+            imageUrl: null,
+            attributes: [],
+            tags: new LocalizedString('tag1,tag2', 'de_DE'),
+        );
+
+        $productCreation = new ProductCreation();
+        $formattedVariants = $productCreation->formatVariantsForShopifyInput($product);
+
+        $this->assertFalse($formattedVariants[0]['taxable'], 'The taxable field should match the variant input.');
+    }
+
+    public function testMapVariantOptionValuesStopsOnFirstMatch(): void
+    {
+        $productOptions = [
+            [
+                'name' => 'Color Option',
+                'values' => [
+                    ['name' => 'Red'],
+                    ['name' => 'Blue'],
+                    ['name' => 'Green'],
+                ]
+            ]
+        ];
+
+        $variant = (object)[
+            'option' => [
+                'color_option' => 'Red'
+            ]
+        ];
+
+        $productCreation = new ProductCreation();
+        $mappedValues = $productCreation->mapVariantOptionValues($variant, $productOptions);
+
+        $this->assertCount(1, $mappedValues, 'Only the first matching value should be processed.');
+        $this->assertSame('Red', $mappedValues[0]['name'], 'The mapped value should match the first correct option.');
+        $this->assertSame('Color Option', $mappedValues[0]['optionName'], 'The option name should match the product option name.');
+    }
+
+
+    public function testMapVariantOptionValuesBreaksOnFirstMatch()
+    {
+        $productOptions = [
+            [
+                'name' => 'Color Option',
+                'values' => [
+                    ['name' => 'Red'],
+                    ['name' => 'Blue']
+                ]
+            ]
+        ];
+
+        $variant = (object)[
+            'option' => [
+                'color_option' => 'Red'
+            ]
+        ];
+
+        $productCreation = new ProductCreation();
+        $mappedValues = $productCreation->mapVariantOptionValues($variant, $productOptions);
+
+        $this->assertCount(1, $mappedValues, 'Only the first matching value should be added.');
+    }
+
+
+    public function testMapVariantOptionValuesHandlesOptionNamesCorrectly()
+    {
+        $productOptions = [
+            [
+                'name' => 'Color Option',
+                'values' => [
+                    ['name' => 'Red'],
+                    ['name' => 'Blue']
+                ]
+            ]
+        ];
+
+        $variant = (object)[
+            'option' => [
+                'color_option' => 'Red'
+            ]
+        ];
+
+        $productCreation = new ProductCreation();
+        $mappedValues = $productCreation->mapVariantOptionValues($variant, $productOptions);
+
+        $this->assertSame('Red', $mappedValues[0]['name'], 'The mapped option value should respect the transformed option name.');
+        $this->assertSame('Color Option', $mappedValues[0]['optionName'], 'The option name should match the product option name.');
+    }
+
+
+    public function testFormatVariantsForShopifyInputHandlesConcreteSkuCorrectly()
+    {
+        $product = new ShopifyProduct(
+            abstractSku: 'TEST_SKU',
+            title: new LocalizedString('Test Title', 'de_DE'),
+            bodyHtml: new LocalizedString('<p>Test Description</p>', 'de_DE'),
+            vendor: 'Test Vendor',
+            price: '100.00',
+            compareAtPrice: null,
+            productType: 'Test Type',
+            isGiftCard: false,
+            handle: new LocalizedString('test-handle', 'de_DE'),
+            status: 'active',
+            publishedScope: null,
+            variants: [
+                new ShopifyVariant(
+                    abstractSku: 'TEST_SKU',
+                    concreteSku: '',
+                    title: 'Test Variant Title',
+                    position: 1,
+                    inventoryQuantity: '10',
+                    inventoryLocation: ['id' => '1'],
+                    isNeverOutOfStock: 'false',
+                    price: '10.00',
+                    inventoryManagement: 'shopify',
+                    inventoryPolicy: 'deny',
+                    taxable: true,
+                    available: true,
+                    requiresShipping: true,
+                    imageUrl: null
+                )
+            ],
+            imageUrl: null,
+            attributes: [],
+            tags: new LocalizedString('tag1,tag2', 'de_DE'),
+        );
+
+        $productCreation = new ProductCreation();
+        $formattedVariants = $productCreation->formatVariantsForShopifyInput($product);
+
+        $this->assertArrayNotHasKey('sku', $formattedVariants[0], 'The sku field should not be present when concreteSku is empty.');
+    }
+
+
+    public function testFormatVariantsForShopifyInputEnsuresContentTypeInFile(): void
+    {
+        $product = new ShopifyProduct(
+            abstractSku: 'TEST_SKU',
+            title: new LocalizedString('Test Title', 'en'),
+            bodyHtml: new LocalizedString('<p>Test Body</p>', 'en'),
+            vendor: 'Test Vendor',
+            price: '99.99',
+            compareAtPrice: null,
+            productType: 'Test Type',
+            isGiftCard: false,
+            handle: null,
+            status: null,
+            publishedScope: null,
+            variants: [
+                new ShopifyVariant(
+                    abstractSku: 'TEST_SKU',
+                    concreteSku: 'TEST_VARIANT_SKU',
+                    title: 'Test Variant Title',
+                    position: 1,
+                    inventoryQuantity: '100',
+                    inventoryLocation: ['id' => '123'],
+                    isNeverOutOfStock: 'false',
+                    price: '99.99',
+                    inventoryManagement: 'shopify',
+                    inventoryPolicy: 'deny',
+                    taxable: true,
+                    available: true,
+                    requiresShipping: true,
+                    imageUrl: 'https://example.com/image.jpg'
+                )
+            ],
+            imageUrl: null,
+            attributes: [],
+            tags: new LocalizedString('test', 'en')
+        );
+
+        $productCreation = new ProductCreation();
+
+        $formattedVariants = $productCreation->formatVariantsForShopifyInput($product);
+
+        $this->assertArrayHasKey('contentType', $formattedVariants[0]['file'], 'The file array is missing the contentType key.');
+        $this->assertSame('IMAGE', $formattedVariants[0]['file']['contentType'], 'The contentType key must have the value "IMAGE".');
+        $this->assertArrayHasKey('originalSource', $formattedVariants[0]['file'], 'The file array is missing the originalSource key.');
+        $this->assertSame(
+            'https://example.com/image.jpg',
+            $formattedVariants[0]['file']['originalSource'],
+            'The originalSource key does not have the expected value.'
+        );
+    }
+
+    private function createShopifyProductWithEdgeCases(): ShopifyProduct
+    {
+        return new ShopifyProduct(
+            'EDGE123', // abstractSku
+            new LocalizedString('Edge Case Product EN', 'Edge Fall Produkt DE'), // title
+            new LocalizedString('Description EN', 'Beschreibung DE'), // bodyHtml
+            'Vendor Edge Cases', // vendor
+            '0.00', // price (string to satisfy the type requirement)
+            null, // compareAtPrice
+            'Edge Type', // productType
+            false, // isGiftCard
+            new LocalizedString('edge-title-en', 'edge-titel-de'), // handle
+            'active', // status
+            'global', // publishedScope
+            [$this->createEdgeCaseVariant()], // variants
+            'https://example.com/image.jpg', // imageUrl
+            [], // attributes
+            new LocalizedString('tag1,tag2', 'tag1,tag2'), // tags
+            null, // id
+            date('Y-m-d H:i:s'), // createdAt
+            date('Y-m-d H:i:s'), // updatedAt
+            null, // publishedAt
+            null, // categoryProductOrder
+            null, // taxSetName
+            false, // isBundle
+            null, // newFrom
+            null  // newTo
+        );
+    }
+
+    private function createEdgeCaseVariant(): ShopifyVariant
+    {
+        return new ShopifyVariant(
+            'EDGE123', // abstractSku
+            'SKU123', // concreteSku
+            'Edge Variant', // title
+            1, // position
+            '10', // inventoryQuantity (string as required by DTO)
+            ['id' => 'location1'], // inventoryLocation
+            '1', // isNeverOutOfStock (string as required by DTO)
+            '59.99', // price (string as required by DTO)
+            'shopify', // inventoryManagement
+            'deny', // inventoryPolicy
+            true, // taxable
+            true, // available
+            true, // requiresShipping
+            null, // id
+            null, // productId
+            null, // upc
+            null, // compareAtPrice
+            [], // option
+            date('Y-m-d H:i:s'), // createdAt
+            null, // updatedAt
+            null, // imageUrl
+            null  // inventoryItemId
+        );
+    }
+
+
+    public function testFormatVariantsForShopifyInputWithEmptyImageUrl(): void
+    {
+        // Arrange: Create a product with a variant missing an imageUrl
+        $product = $this->createShopifyProductWithEmptyImageUrl();
+
+        // Act
+        $formattedVariants = $this->productCreation->formatVariantsForShopifyInput($product);
+
+        // Assert
+        $this->assertIsArray($formattedVariants, 'Formatted variants should be an array.');
+        $this->assertNotEmpty($formattedVariants, 'Formatted variants should not be empty.');
+
+        foreach ($formattedVariants as $variant) {
+            $this->assertArrayHasKey('file', $variant, 'Each variant should have a file key.');
+            $this->assertEmpty($variant['file'], 'File should be empty when imageUrl is missing.');
+        }
+    }
+
+    private function createShopifyProductWithEmptyImageUrl(): ShopifyProduct
+    {
+        $product = new ShopifyProduct(
+            'AB126', // Abstract SKU
+            new LocalizedString('Product with Missing Image EN', 'Produkt ohne Bild DE'), // Title
+            new LocalizedString('Description EN', 'Beschreibung DE'), // Description
+            'Vendor Missing Image', // Vendor
+            '89.99', // Price
+            '99.99', // Compare At Price
+            'Missing Image Type', // Product Type
+            false, // Is Gift Card
+            new LocalizedString('missing-image-title-en', 'fehlendes-bild-titel-de'), // Handle
+            'ACTIVE', // Status
+            'global', // Published Scope
+            [], // Variants (added below)
+            null, // Image URL
+            [], // Attributes
+            new LocalizedString('tag7,tag8', 'tag7,tag8'), // Tags
+            null, // ID
+            date('Y-m-d H:i:s'), // Created At
+            date('Y-m-d H:i:s'), // Updated At
+            null, // Published At
+            null, // Category Product Order
+            null, // Tax Set Name
+            false, // Is Bundle
+            null, // New From
+            null  // New To
+        );
+
+        $variant1 = new ShopifyVariant(
+            'AB126', // Abstract SKU
+            'SKU126', // Concrete SKU
+            'Variant Missing Image', // Title
+            0, // Position
+            '15', // Inventory Quantity
+            ['id' => 'location1'], // Inventory Location
+            '0', // Is Never Out of Stock
+            '89.99', // Price
+            'shopify', // Inventory Management
+            'deny', // Inventory Policy
+            true, // Taxable
+            true, // Available
+            true, // Requires Shipping
+            null, // ID
+            null, // Product ID
+            null, // UPC
+            '0.00', // Compare At Price
+            [], // Options
+            date('Y-m-d H:i:s'), // Created At
+            null, // Updated At
+            '', // Image URL (empty)
+            null // Inventory Item ID
+        );
+
+        $product->variants = [$variant1];
+
+        return $product;
+    }
+
+
+    public function testFormatVariantsForShopifyInputAccessibleDirectly(): void
+    {
+        // Arrange
+        $product = $this->createShopifyProductWithVariants();
+
+        // Act
+        $variants = $this->productCreation->formatVariantsForShopifyInput($product);
+
+        // Assert
+        $this->assertIsArray($variants, 'Variants must be returned as an array.');
+        $this->assertNotEmpty($variants, 'Variants should not be empty.');
+        $this->assertArrayHasKey('optionValues', $variants[0], 'Each variant must contain "optionValues".');
+        $this->assertArrayHasKey('price', $variants[0], 'Each variant must have a price.');
+    }
+
+    public function testFormatVariantsThroughPrepareInputData(): void
+    {
+        // Arrange
+        $product = $this->createShopifyProductWithVariants();
+
+        // Act
+        $inputData = $this->productCreation->prepareInputData($product);
+
+        // Assert
+        $this->assertArrayHasKey('variants', $inputData, 'Input data must contain variants.');
+        $this->assertCount(2, $inputData['variants'], 'There should be exactly 2 variants.');
+    }
+
+
+    public function testGenerateProductOptionsValidatesSequentialPositions(): void
+    {
+        $product = $this->createShopifyProductWithVariantsAndUniqueOptions();
+
+        $productOptions = $this->productCreation->generateProductOptions($product);
+
+        $this->assertIsArray($productOptions, 'Product options should be an array.');
+        $this->assertNotEmpty($productOptions, 'Product options should not be empty.');
+
+        $positions = array_column($productOptions, 'position');
+        foreach ($positions as $index => $position) {
+            if ($index > 0) {
+                $this->assertSame(
+                    $positions[$index - 1] + 1,
+                    $position,
+                    "Position {$position} is not sequential after {$positions[$index - 1]}."
+                );
+            }
+        }
+
+        $this->assertSameSize(array_unique($positions), $positions, 'Positions should be unique.');
     }
 
     /**
@@ -154,7 +610,6 @@ class ProductCreationTest extends TestCase
         $this->assertSame($expectedOption['position'], $productOptions[0]['position']);
         $this->assertEquals($expectedOption['values'], $productOptions[0]['values']);
     }
-
     /**
      * Test prepareInputData with variants that have empty options
      */
@@ -198,6 +653,74 @@ class ProductCreationTest extends TestCase
             $this->assertSame('Variant Medium', $variant['optionValues'][1]['optionName'], 'Second optionName should be Size.');
             $this->assertSame('Variant Medium', $variant['optionValues'][1]['name'], 'Second optionValue name should be Large.');
         }
+    }
+
+    public function testGenerateProductOptionsHandlesUnderscoreInKey(): void
+    {
+        // Arrange: Create a product with variants that result in underscores in the keys of `optionValuesMap`.
+        $product = new ShopifyProduct(
+            'AB126',
+            new LocalizedString('Test Product EN', 'Testprodukt DE'),
+            new LocalizedString('Test Description EN', 'Testbeschreibung DE'),
+            'Test Vendor',
+            '79.99',
+            '99.99',
+            'Test Type',
+            false,
+            new LocalizedString('test-product-en', 'test-produkt-de'),
+            'ACTIVE',
+            'global',
+            [],
+            'http://example.com/test-product.jpg',
+            ['color_option' => 'Blue'], // Attributes with underscores
+            new LocalizedString('tag7,tag8', 'tag7,tag8'),
+            null,
+            date('Y-m-d H:i:s'),
+            date('Y-m-d H:i:s'),
+            null,
+            null,
+            null,
+            false,
+            null,
+            null
+        );
+
+        // Add variants with non-empty options that will map to underscores.
+        $product->variants[] = new ShopifyVariant(
+            'AB126',
+            'SKU126-BLUE',
+            'Variant Title Blue',
+            0,
+            '15',
+            ['id' => 'location4'],
+            '0',
+            '79.99',
+            'shopify',
+            'deny',
+            true,
+            true,
+            true,
+            null,
+            null,
+            null,
+            '0.00',
+            ['color_option' => 'Blue'],
+            date('Y-m-d H:i:s'),
+            null,
+            'http://example.com/variant_blue.jpg',
+            null
+        );
+
+        // Act
+        $productOptions = $this->productCreation->generateProductOptions($product);
+
+        // Assert
+        $this->assertIsArray($productOptions);
+        $this->assertNotEmpty($productOptions);
+
+        // Validate the key transformation
+        $expectedOptionName = 'Color option';
+        $this->assertSame($expectedOptionName, $productOptions[0]['name']);
     }
 
 
@@ -319,6 +842,92 @@ class ProductCreationTest extends TestCase
 
         return $product;
     }
+
+    private function createShopifyProductWithVariantsAndUniqueOptions(): ShopifyProduct
+    {
+        $product = new ShopifyProduct(
+            'AB123', // #1 $abstractSku
+            new LocalizedString('Product Title EN', 'Produkt Titel DE'), // #2 $title
+            new LocalizedString('Product Description EN', 'Produktbeschreibung DE'), // #3 $bodyHtml
+            'Vendor Name', // #4 $vendor
+            '99.99', // #5 $price
+            '119.99', // #6 $compareAtPrice
+            'Product Type', // #7 $productType
+            false, // #8 $isGiftCard
+            new LocalizedString('product-title-en', 'produkt-titel-de'), // #9 $handle
+            'ACTIVE', // #10 $status
+            'global', // #11 $publishedScope
+            [], // #12 $variants (to be added below)
+            'http://example.com/product.jpg', // #13 $imageUrl
+            ['color' => 'Blue'], // #14 $attributes
+            new LocalizedString('tag1,tag2', 'tag1,tag2'), // #15 $tags
+            null, // #16 $id
+            date('Y-m-d H:i:s'), // #17 $createdAt
+            date('Y-m-d H:i:s'), // #18 $updatedAt
+            null, // #19 $publishedAt
+            null, // #20 $categoryProductOrder
+            null, // #21 $taxSetName
+            true, // #22 $isBundle
+            null, // #23 $newFrom
+            null  // #24 $newTo
+        );
+
+        // Add variants with options
+        $variant1 = new ShopifyVariant(
+            'AB123', // $abstractSku
+            'SKU123-BLUE', // $concreteSku
+            'Variant Title Blue', // $title
+            0, // $position
+            '10', // $inventoryQuantity
+            ['id' => 'location1'], // $inventoryLocation
+            '0', // $isNeverOutOfStock
+            '99.99', // $price
+            'shopify', // $inventoryManagement
+            'deny', // $inventoryPolicy
+            true, // $taxable
+            true, // $available
+            true, // $requiresShipping
+            null, // $id
+            null, // $productId
+            null, // $upc
+            '0.00', // $compareAtPrice
+            ['Memory' => '32GB'], // $option
+            date('Y-m-d H:i:s'), // $createdAt
+            null, // $updatedAt
+            'http://example.com/variant1.jpg', // $imageUrl
+            null // $inventoryItemId
+        );
+
+        $variant2 = new ShopifyVariant(
+            'AB123', // $abstractSku
+            'SKU123-RED', // $concreteSku
+            'Variant Title Red', // $title
+            1, // $position
+            '5', // $inventoryQuantity
+            ['id' => 'location1'], // $inventoryLocation
+            '0', // $isNeverOutOfStock
+            '99.99', // $price
+            'shopify', // $inventoryManagement
+            'deny', // $inventoryPolicy
+            true, // $taxable
+            true, // $available
+            true, // $requiresShipping
+            null, // $id
+            null, // $productId
+            null, // $upc
+            '0.00', // $compareAtPrice
+            ['color' => 'Red'], // $option
+            date('Y-m-d H:i:s'), // $createdAt
+            null, // $updatedAt
+            'http://example.com/variant2.jpg', // $imageUrl
+            null // $inventoryItemId
+        );
+
+        $product->variants = [$variant1, $variant2];
+
+        return $product;
+    }
+
 
     /**
      * Helper method to create a ShopifyProduct instance with empty variant options
